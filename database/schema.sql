@@ -25,7 +25,7 @@ CREATE TABLE categories (
 
 CREATE TABLE suppliers (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
+    name VARCHAR(150) NOT NULL UNIQUE,
     phone VARCHAR(30),
     email VARCHAR(150),
     address VARCHAR(255)
