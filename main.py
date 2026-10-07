@@ -1,6 +1,9 @@
+from app.gui.main_window import MainWindow
+
+
 def main():
-    print("MySQL Inventory Management System")
-    print("Application foundation initialized.")
+    app = MainWindow()
+    app.mainloop()
 
 
 if __name__ == "__main__":
