@@ -4,6 +4,7 @@ from tkinter import ttk
 from app.gui.categories import CategoryFrame
 from app.gui.products import ProductFrame
 from app.gui.suppliers import SupplierFrame
+from app.gui.purchases import PurchaseFrame
 
 
 class MainWindow(tk.Tk):
@@ -35,8 +36,12 @@ class MainWindow(tk.Tk):
         )
 
         categories_tab = CategoryFrame(notebook)
-        products_tab = ProductFrame(notebook)
+        self.products_tab = ProductFrame(notebook)
         suppliers_tab = SupplierFrame(notebook)
+        purchases_tab = PurchaseFrame(
+            notebook,
+            on_purchase_saved=self.refresh_products,
+        )
 
         notebook.add(
             categories_tab,
@@ -44,7 +49,7 @@ class MainWindow(tk.Tk):
         )
 
         notebook.add(
-            products_tab,
+            self.products_tab,
             text="Products",
         )
 
@@ -53,6 +58,15 @@ class MainWindow(tk.Tk):
             text="Suppliers",
         )
 
+        notebook.add(
+            purchases_tab,
+            text="Purchases",
+        )
+
+    def refresh_products(self):
+        """Refresh the products table after a purchase is saved."""
+
+        self.products_tab.refresh_products()
 
 def run_app():
     """Start the application."""

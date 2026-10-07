@@ -344,6 +344,8 @@ class ProductFrame(ttk.Frame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+        self.service.db.rollback()
+
         products = self.service.get_all_products()
 
         for product in products:
