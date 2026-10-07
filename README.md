@@ -4,12 +4,12 @@ A small inventory management application built with Python and MySQL, designed t
 
 ## Project Status
 
-**Current version:** `v0.1.0`
-**Status:** Foundation release
+**Current version:** `v0.2.5`
+**Status:** Core CRUD GUI implementation complete; QA in progress
 
-The current release establishes the project's requirements, database architecture, MySQL schema, relationships, constraints, indexes, and safe demo data.
+The project foundation, database layer, core CRUD services, and basic GUI for categories, products, and suppliers are implemented.
 
-The application GUI and inventory workflows will be implemented in subsequent versions.
+Version `v0.2.6` is focused on CRUD quality assurance and documentation before the Core CRUD milestone is released as `v0.3.0`.
 
 ## Goals
 
@@ -32,20 +32,29 @@ This project is designed to demonstrate practical understanding of:
 
 ## Current Features
 
-The `v0.1.0` foundation includes:
+The current development state includes:
 
 - Project structure and Python environment
-- Defined functional and technical requirements
-- Documented database architecture
-- MySQL relational schema
-- Primary keys and foreign keys
-- Unique constraints
-- Check constraints
-- Referential integrity rules
-- Database indexes
+- Environment-based database configuration
+- MySQL connection lifecycle management
+- Transaction commit and rollback support
+- Category CRUD
+- Product CRUD
+- Supplier CRUD
+- Category, product, and supplier validation
+- Duplicate protection
+- Foreign-key deletion protection
+- Product category and supplier relationship validation
+- Product search and filtering at the service level
+- Tkinter-based GUI
+- Category management GUI
+- Product management GUI
+- Supplier management GUI
+- Add, edit, delete, and refresh operations through the GUI
 - Safe fictional demo data
-- Basic application entry point
-- Environment-based database configuration template
+- Relational database schema with primary keys and foreign keys
+- Unique and check constraints
+- Database indexes
 
 ## Database
 
@@ -80,7 +89,7 @@ The database is designed around normalized relational structures and uses foreig
 ### Application
 
 - Python
-- Tkinter / CustomTkinter — planned for the GUI
+- Tkinter / ttk
 
 ### Database
 
@@ -118,8 +127,6 @@ The database is designed around normalized relational structures and uses foreig
     ├── main.py
     ├── requirements.txt
     └── README.md
-
-Some directories are intentionally empty during the foundation stage and will be populated in later versions.
 
 ## Documentation
 
@@ -165,9 +172,11 @@ Activate the virtual environment and run:
 
     python main.py
 
-The current foundation entry point confirms that the application environment is initialized.
+This launches the desktop GUI for the current core CRUD modules:
 
-The full inventory GUI will be introduced in later versions.
+- Categories
+- Products
+- Suppliers
 
 ## Testing
 
@@ -175,25 +184,30 @@ Run:
 
     python -m pytest
 
-At the foundation stage, automated application tests have not yet been implemented.
+Automated tests will be expanded during later stabilization work.
+
+Manual CRUD QA is performed during the development process to verify validation, duplicate protection, relationship rules, and deletion restrictions.
 
 ## Planned Development
-
-The project will evolve through the following releases:
 
 | Version   | Focus                                  |
 | --------- | -------------------------------------- |
 | `v0.1.0`  | Project foundation + database          |
-| `v0.2.0`  | Core CRUD                              |
-| `v0.3.0`  | Purchasing / stock-in                  |
-| `v0.4.0`  | Sales / stock-out                      |
-| `v0.5.0`  | SQL depth + search/filtering           |
-| `v0.6.0`  | Complete GUI                           |
-| `v0.7.0`  | Reports + dashboard                    |
-| `v0.8.0`  | Validation + error handling + security |
-| `v0.9.0`  | Testing + stabilization                |
-| `v0.10.0` | Documentation + release preparation    |
-| `v1.0.0`  | Complete stable system                 |
+| `v0.2.1`  | Database connection layer              |
+| `v0.2.2`  | Category CRUD service                  |
+| `v0.2.3`  | Product CRUD service                   |
+| `v0.2.4`  | Supplier CRUD service                  |
+| `v0.2.5`  | Basic CRUD GUI                         |
+| `v0.2.6`  | CRUD QA + documentation                |
+| `v0.3.0`  | Core CRUD milestone release            |
+| `v0.4.0`  | Purchasing / stock-in                  |
+| `v0.5.0`  | Sales / stock-out                      |
+| `v0.6.0`  | SQL depth + search/filtering           |
+| `v0.7.0`  | Complete GUI                           |
+| `v0.8.0`  | Reports + dashboard                    |
+| `v0.9.0`  | Validation + error handling + security |
+| `v0.10.0` | Testing + stabilization                |
+| `v1.0.0`  | Documentation + final stable release   |
 
 ## Scope Boundaries
 
