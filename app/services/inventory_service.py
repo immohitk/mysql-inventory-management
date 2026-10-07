@@ -4,8 +4,9 @@ from app.db.connection import DatabaseConnection
 class InventoryService:
     """Business logic for inventory stock operations."""
 
-    def __init__(self):
-        self.db = DatabaseConnection()
+    def __init__(self, db=None):
+        self.db = db or DatabaseConnection()
+        self._owns_connection = db is None
 
     def get_product_stock(self, product_id):
         """Return the current stock quantity for a product."""
@@ -54,5 +55,6 @@ class InventoryService:
         return current_stock + quantity
 
     def close(self):
-        """Close the database connection."""
-        self.db.close()
+        """Close the database connection when owned by this service."""
+        if self._owns_connection:
+            self.db.close()

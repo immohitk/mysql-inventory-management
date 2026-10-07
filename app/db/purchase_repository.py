@@ -4,8 +4,9 @@ from app.db.connection import DatabaseConnection
 class PurchaseRepository:
     """Data access layer for purchase-related database operations."""
 
-    def __init__(self):
-        self.db = DatabaseConnection()
+    def __init__(self, db=None):
+        self.db = db or DatabaseConnection()
+        self._owns_connection = db is None
 
     def create_purchase(self, supplier_id, purchase_date, total_amount, status="COMPLETED"):
         """Create a purchase record and return the new purchase ID."""
@@ -155,5 +156,6 @@ class PurchaseRepository:
         return products
 
     def close(self):
-        """Close the database connection."""
-        self.db.close()
+        """Close the database connection when owned by this repository."""
+        if self._owns_connection:
+            self.db.close()

@@ -1,15 +1,17 @@
 from decimal import Decimal
 
-from app.db.purchase_repository import PurchaseRepository
 from app.db.connection import DatabaseConnection
+from app.db.purchase_repository import PurchaseRepository
+from app.services.inventory_service import InventoryService
 
 
 class PurchaseService:
     """Business logic for purchase creation and calculation."""
 
     def __init__(self):
-        self.repository = PurchaseRepository()
         self.db = DatabaseConnection()
+        self.repository = PurchaseRepository(self.db)
+        self.inventory = InventoryService(self.db)
 
     def _validate_supplier(self, supplier_id):
         """Validate that the supplier exists."""
@@ -132,6 +134,43 @@ class PurchaseService:
             "items": prepared_items,
             "total_amount": total_amount,
         }
+
+    def save_purchase(self, supplier_id, purchase_date, items):
+        """Create a purchase and update stock atomically."""
+        try:
+            purchase = self.create_purchase(
+                supplier_id,
+                purchase_date,
+                items,
+            )
+
+            purchase_id = self.repository.create_purchase(
+                supplier_id=purchase["supplier_id"],
+                purchase_date=purchase["purchase_date"],
+                total_amount=purchase["total_amount"],
+            )
+
+            for item in purchase["items"]:
+                self.repository.create_purchase_item(
+                    purchase_id=purchase_id,
+                    product_id=item["product_id"],
+                    quantity=item["quantity"],
+                    unit_cost=item["unit_cost"],
+                    subtotal=item["subtotal"],
+                )
+
+                self.inventory.stock_in(
+                    product_id=item["product_id"],
+                    quantity=item["quantity"],
+                )
+
+            self.db.commit()
+
+            return purchase_id
+
+        except Exception:
+            self.db.rollback()
+            raise
 
     def close(self):
         """Close database connections."""
