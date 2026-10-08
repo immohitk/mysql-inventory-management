@@ -708,6 +708,9 @@ class PurchaseFrame(ttk.Frame):
         """Add the selected product to the current purchase."""
 
         try:
+            # A purchase must have a supplier before any item can be added.
+            self._get_selected_supplier_id()
+
             product_id, sku, name, cost_price = (
                 self._get_selected_product()
             )
@@ -794,9 +797,12 @@ class PurchaseFrame(ttk.Frame):
         del self.items[selected_index]
         self.items_tree.delete(selected_item)
 
-        total = self.service.calculate_total(
-            self.items
-        )
+        if self.items:
+            total = self.service.calculate_total(
+                self.items
+            )
+        else:
+            total = Decimal("0.00")
 
         self.total_label.config(
             text=f"Total: ₹{total:.2f}"
