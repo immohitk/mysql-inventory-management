@@ -1,40 +1,41 @@
 # MySQL Inventory Management
 
-A small inventory management application built with Python and MySQL, designed to demonstrate practical relational database and SQL fundamentals through a real-world inventory workflow.
+A desktop inventory management application built with Python, Tkinter, and MySQL. This project demonstrates practical relational database design, SQL fundamentals, CRUD operations, purchasing workflows, and inventory management through a real-world application.
 
 ## Project Status
 
-**Current version:** `v0.2.5`
-**Status:** Core CRUD GUI implementation complete; QA in progress
+**Current version:** `v0.4.1` — Schema Redesign
+**Status:** Procurement schema design completed; data migration and related application changes are pending.
 
-The project foundation, database layer, core CRUD services, and basic GUI for categories, products, and suppliers are implemented.
+The project includes the original database schema, database connection layer, CRUD services, and basic GUI for categories, products, and suppliers. The purchasing and stock-in milestone was released in `v0.4.0`.
 
-Version `v0.2.6` is focused on CRUD quality assurance and documentation before the Core CRUD milestone is released as `v0.3.0`.
+Version `v0.4.1` introduces a proposed procurement database redesign that separates product inventory units from supplier-specific purchase offers and package specifications.
+
+**Important:** The procurement schema is a design draft, not a migration script. The existing `inventory_db` must not be modified using `database/schema_v2.sql`. Data migration is planned for `v0.4.2`.
 
 ## Goals
 
-This project is designed to demonstrate practical understanding of:
+This project demonstrates practical understanding of:
 
-- Python
-- MySQL
-- SQL
-- Relational database design
+- Python application development
+- MySQL and SQL
+- Relational database design and normalization
+- Primary keys and foreign keys
 - CRUD operations
-- Primary and foreign keys
-- Table relationships
-- Normalization
-- Constraints
-- Indexes
-- Transactions
-- Validation
-- Testing
-- GUI development
+- Database constraints and indexes
+- Transactions and rollback
+- Input validation and error handling
+- Automated and manual testing
+- Tkinter GUI development
+- Inventory and purchasing workflows
+- Explicit measurement-unit conversions
+- Database migration planning
 
 ## Current Features
 
-The current development state includes:
+The project development includes:
 
-- Project structure and Python environment
+- Project structure and Python virtual environment
 - Environment-based database configuration
 - MySQL connection lifecycle management
 - Transaction commit and rollback support
@@ -46,19 +47,26 @@ The current development state includes:
 - Foreign-key deletion protection
 - Product category and supplier relationship validation
 - Product search and filtering at the service level
-- Tkinter-based GUI
+- Tkinter-based desktop GUI
 - Category management GUI
 - Product management GUI
 - Supplier management GUI
 - Add, edit, delete, and refresh operations through the GUI
-- Safe fictional demo data
-- Relational database schema with primary keys and foreign keys
+- Fictional demonstration data
+- Relational schema with primary keys and foreign keys
 - Unique and check constraints
 - Database indexes
+- Purchasing and stock-in functionality from the `v0.4.0` milestone
+- Proposed procurement schema redesign in `v0.4.1`
+- Procurement schema design documentation
+
+The procurement redesign is currently a schema and documentation milestone. The proposed supplier-offer service, package and unit logic, data migration, and related purchase workflow integration are planned for subsequent versions.
 
 ## Database
 
-The project currently contains seven core tables:
+### Existing database schema
+
+The existing database contains seven core tables:
 
 - `categories`
 - `suppliers`
@@ -68,21 +76,42 @@ The project currently contains seven core tables:
 - `sales`
 - `sale_items`
 
-### Relationships
+These tables represent the existing application database structure. The original schema remains available in `database/schema.sql`.
 
-The database relationships are:
+### Existing relationships
 
-    categories
-       │
-       └──< products >── suppliers
+```text
+categories
+    |
+    └──< products >── suppliers
 
-    products
-       │
-       ├──< purchase_items >── purchases
-       │
-       └──< sale_items >────── sales
+products
+    |
+    ├──< purchase_items >── purchases
+    |
+    └──< sale_items >────── sales
+```
 
-The database is designed around normalized relational structures and uses foreign keys to maintain relationships between entities.
+Foreign keys maintain relationships between the existing database entities.
+
+### Proposed procurement schema
+
+Version `v0.4.1` introduces a separate target schema draft in `database/schema_v2.sql`.
+
+The proposed design introduces:
+
+- `units` — measurement units such as kilogram, litre, and piece
+- `unit_conversions` — explicit directed conversion factors
+- `package_forms` — packaging forms such as carton, sack, box, and bottle
+- `package_specifications` — purchasable package configurations
+- `package_contents` — explicitly defined package contents and quantities
+- `supplier_offers` — supplier-specific product and package prices
+
+The target product design also proposes an inventory unit and fractional stock quantities. It is reference material only and is not an executable replacement for the existing `products` table.
+
+The proposed model is intended to support multiple suppliers per product and different package configurations for the same product.
+
+**Migration boundary:** The existing database must remain unchanged during `v0.4.1`. Migration planning and validation belong to `v0.4.2`. Historical purchase costs and subtotals must be preserved.
 
 ## Technology Stack
 
@@ -107,114 +136,153 @@ The database is designed around normalized relational structures and uses foreig
 
 ## Project Structure
 
-    mysql-inventory-management/
-    ├── app/
-    │   ├── db/
-    │   ├── models/
-    │   ├── services/
-    │   ├── gui/
-    │   └── utils/
-    ├── database/
-    │   ├── schema.sql
-    │   └── seed.sql
-    ├── tests/
-    ├── screenshots/
-    ├── docs/
-    │   ├── requirements.md
-    │   └── database-architecture.md
-    ├── .env.example
-    ├── .gitignore
-    ├── main.py
-    ├── requirements.txt
-    └── README.md
+```text
+mysql-inventory-management/
+├── app/
+│   ├── db/
+│   ├── models/
+│   ├── services/
+│   ├── gui/
+│   └── utils/
+├── database/
+│   ├── schema.sql
+│   ├── seed.sql
+│   └── schema_v2.sql
+├── tests/
+├── screenshots/
+├── docs/
+│   ├── requirements.md
+│   ├── database-architecture.md
+│   └── procurement-schema-design.md
+├── .env.example
+├── .gitignore
+├── main.py
+├── requirements.txt
+└── README.md
+```
+
+The directory structure reflects the main project organization. Individual files and modules may evolve as development continues.
 
 ## Documentation
 
-Project requirements:
+- **Project requirements:** [`docs/requirements.md`](docs/requirements.md)
+- **Existing database architecture:** [`docs/database-architecture.md`](docs/database-architecture.md)
+- **Proposed procurement schema design:** [`docs/procurement-schema-design.md`](docs/procurement-schema-design.md)
+- **Existing database schema:** [`database/schema.sql`](database/schema.sql)
+- **Proposed target schema draft:** [`database/schema_v2.sql`](database/schema_v2.sql)
 
-`docs/requirements.md`
-
-Database architecture:
-
-`docs/database-architecture.md`
+The existing database documentation describes the current schema. The procurement design document describes the proposed target model and its migration boundaries.
 
 ## Database Setup
 
+The following commands initialize the existing database for local development. Use them only when setting up a fresh development database or when you intentionally want to initialize the schema.
+
 ### 1. Create the database schema
 
-    mysql -u root -p < database/schema.sql
+```bash
+mysql -u root -p < database/schema.sql
+```
 
-### 2. Load demo data
+### 2. Load demonstration data
 
-    mysql -u root -p < database/seed.sql
+```bash
+mysql -u root -p < database/seed.sql
+```
 
-The seed file contains fictional demonstration data only.
+The seed file contains fictional demonstration data.
+
+**Existing database warning:** Do not run the proposed `database/schema_v2.sql` against `inventory_db`. It is a target design draft, not a migration script.
 
 ## Configuration
 
 Copy `.env.example` to `.env`.
 
-Configure the database connection values for your local MySQL installation.
+Configure the connection values for your local MySQL installation.
 
 Example:
 
-    DB_HOST=localhost
-    DB_PORT=3306
-    DB_NAME=inventory_db
-    DB_USER=root
-    DB_PASSWORD=your_password
+```dotenv
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=inventory_db
+DB_USER=root
+DB_PASSWORD=your_password
+```
 
-Do not commit `.env` or real credentials to the repository.
+Use the database name and credentials appropriate for your local environment.
+
+Do not commit `.env`, passwords, or real credentials to the repository.
 
 ## Running the Project
 
-Activate the virtual environment and run:
+Activate the project's virtual environment, install dependencies if necessary, and run:
 
-    python main.py
+```bash
+python main.py
+```
 
-This launches the desktop GUI for the current core CRUD modules:
+This launches the desktop GUI for the implemented application modules, including the core CRUD modules:
 
 - Categories
 - Products
 - Suppliers
 
+Available purchasing and stock-in functionality depends on the current implementation and configuration.
+
 ## Testing
 
-Run:
+Run the automated test suite with:
 
-    python -m pytest
+```bash
+python -m pytest
+```
 
-Automated tests will be expanded during later stabilization work.
+Testing is expanded throughout development.
 
-Manual CRUD QA is performed during the development process to verify validation, duplicate protection, relationship rules, and deletion restrictions.
+Manual QA checks cover areas such as:
 
-## Planned Development
+- CRUD operations
+- Input validation
+- Duplicate protection
+- Relationship rules
+- Deletion restrictions
+- Database transaction behaviour
 
-| Version   | Focus                                  |
-| --------- | -------------------------------------- |
-| `v0.1.0`  | Project foundation + database          |
-| `v0.2.1`  | Database connection layer              |
-| `v0.2.2`  | Category CRUD service                  |
-| `v0.2.3`  | Product CRUD service                   |
-| `v0.2.4`  | Supplier CRUD service                  |
-| `v0.2.5`  | Basic CRUD GUI                         |
-| `v0.2.6`  | CRUD QA + documentation                |
-| `v0.3.0`  | Core CRUD milestone release            |
-| `v0.4.0`  | Purchasing / stock-in                  |
-| `v0.5.0`  | Sales / stock-out                      |
-| `v0.6.0`  | SQL depth + search/filtering           |
-| `v0.7.0`  | Complete GUI                           |
-| `v0.8.0`  | Reports + dashboard                    |
-| `v0.9.0`  | Validation + error handling + security |
-| `v0.10.0` | Testing + stabilization                |
-| `v1.0.0`  | Documentation + final stable release   |
+The proposed procurement schema has also been tested for table creation in a separate temporary database. Successful table creation does not establish that all package, unit-conversion, migration, or application-level business rules have been implemented.
+
+Those rules require further validation and automated tests as their corresponding services and migration are developed.
+
+## Development Roadmap
+
+The project follows this versioned roadmap:
+
+| Version  | Focus                                                    |
+| -------- | -------------------------------------------------------- |
+| `v0.1.0` | Project foundation, schema, demo data, and documentation |
+| `v0.2.1` | Database connection layer                                |
+| `v0.2.2` | Category CRUD service                                    |
+| `v0.2.3` | Product CRUD service                                     |
+| `v0.2.4` | Supplier CRUD service                                    |
+| `v0.2.5` | Basic CRUD GUI                                           |
+| `v0.2.6` | CRUD QA and documentation                                |
+| `v0.3.0` | Core CRUD milestone release                              |
+| `v0.4.0` | Purchasing and stock-in                                  |
+| `v0.4.1` | Schema redesign                                          |
+| `v0.4.2` | Data migration                                           |
+| `v0.4.3` | Supplier Offer service                                   |
+| `v0.4.4` | Package and unit logic                                   |
+| `v0.4.5` | Purchase refactor                                        |
+| `v0.4.6` | Purchase GUI                                             |
+| `v0.4.7` | Stock-in refactor                                        |
+| `v0.5.0` | QA and documentation                                     |
+
+The roadmap order and version numbers are maintained as defined for this project.
 
 ## Scope Boundaries
 
-The first version intentionally does not include:
+The initial application intentionally excludes several advanced features, including:
 
-- Authentication
-- User roles
+- Authentication and user roles
 - Customer management
 - Barcode scanning
 - Multiple warehouses
@@ -223,21 +291,22 @@ The first version intentionally does not include:
 - Mobile application
 - Payment gateway
 - GST-compliant invoicing
-- Purchase orders
-- Returns or refunds
+- Returns and refunds
 - Advanced analytics
 - Email notifications
 - Supplier portal
 
+Additional functionality may be considered after the core application and procurement workflow have been stabilized.
+
 ## Demo Data
 
-The repository includes fictional seed data for:
+The original demonstration data includes fictional records for:
 
 - 4 categories
 - 3 suppliers
 - 8 products
 
-The data is intended for local development and demonstration.
+This data is intended for local development and demonstration purposes.
 
 ## License
 
