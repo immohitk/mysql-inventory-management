@@ -64,3 +64,18 @@ Product names, current supplier associations, and legacy cost prices alone are n
 ## Current Status
 
 **Status: IN PROGRESS.** The source candidate values have been recorded, but no candidate offer is approved. Package details, inventory units, price bases, and minimum order quantities still require evidence. No supplier offers should be created from this register until the relevant mapping is verified.
+
+## Source Description Review
+
+The eight product descriptions were inspected in the isolated database `inventory_migration_final_v042`.
+
+- **ELEC-001 — Wireless Keyboard:** "Compact wireless keyboard"; no package quantity or price basis stated.
+- **ELEC-002 — Wireless Mouse:** "Ergonomic wireless mouse"; no package quantity or price basis stated.
+- **COMP-001 — USB-C Hub:** "Multi-port USB-C connectivity hub"; no package quantity or price basis stated.
+- **COMP-002 — HDMI Cable:** "High-speed HDMI cable"; no package quantity or price basis stated.
+- **OFF-001 — Notebook:** "A5 ruled notebook"; format is described, but inventory unit, package quantity, and price basis remain unverified.
+- **OFF-002 — Ballpoint Pen Pack:** "Pack of blue ballpoint pens"; the number of pens per pack is not stated.
+- **HOME-001 — Electric Kettle:** "1.5 litre electric kettle"; the capacity does not establish the inventory unit or supplier package contents.
+- **HOME-002 — Table Fan:** "Compact table fan"; no package quantity or price basis stated.
+
+**Review result:** Product descriptions do not provide enough evidence to approve supplier offers. Inventory units, package specifications, price bases, and minimum order quantities remain unresolved. No offers are approved by this review.
