@@ -180,21 +180,21 @@ The live database must remain unchanged during planning and test migration.
 
 ### Schema integrity
 
-- [ ] All required target tables exist.
-- [ ] Foreign keys are valid.
-- [ ] Unique constraints remain satisfied.
-- [ ] Check constraints are satisfied.
-- [ ] Package specifications reference valid package forms.
-- [ ] Package contents have valid references and explicit quantities.
-- [ ] Supplier offers reference valid suppliers, products, and package specifications.
+- [x] All required target tables exist in the isolated test database.
+- [x] Foreign keys were inspected and tested for the package-content parent relationship.
+- [x] Unique constraints were tested for duplicate supplier offers.
+- [x] Check constraints were tested for package quantity, supplier-offer price, and minimum order quantity.
+- [x] Package specifications reference valid package forms.
+- [x] Package contents have valid references and explicit quantities.
+- [x] Supplier offers reference valid suppliers, products, and package specifications.
 - [ ] No unsupported unit or package conversion is introduced.
 
 ### Recovery
 
-- [ ] Backup creation is verified.
-- [ ] Migration failures are handled safely.
-- [ ] Rollback or restoration is tested.
-- [ ] Original database remains unchanged during isolated tests.
+- [x] Backup was restored successfully into isolated test databases and source row counts matched the expected baseline.
+- [x] A controlled migration failure was reproduced; the test confirmed that earlier DDL changes remained after the error.
+- [x] Restoration into a fresh recovery database was tested, and migrations `001` and `002` completed successfully afterward.
+- [x] Original database was not modified by the isolated tests.
 
 ## 11. Rollback Strategy
 
@@ -219,10 +219,29 @@ The `v0.4.2` migration milestone is complete only when:
 
 ## 13. Current Status
 
-**Planning stage — migration not yet executed.**
+**Status: Schema migration tested in an isolated database; data migration remains incomplete.**
 
-The source schema and baseline counts have been inspected. Historical purchase totals and purchase-item references passed the initial checks.
+The following work has been completed:
 
-No migration has been run against the original `inventory_db`.
+- The original source database was backed up and restored into an isolated test database.
+- Baseline row counts were verified: categories 4, suppliers 3, products 8, purchases 16, purchase_items 20, sales 0, and sale_items 0.
+- Migration scripts `001` and `002` were executed in the isolated test database.
+- The new procurement tables and their foreign keys, unique constraints, and check constraints were inspected.
+- Tests confirmed that invalid package quantities, cross-specification parent references, duplicate supplier offers, negative offer prices, and zero minimum order quantities are rejected.
+- Original table row counts remained unchanged after the schema migrations.
+- Aggregate purchase totals and purchase-item subtotals both equal 44,805.00.
+- No individual purchase-total mismatch was returned by the reconciliation query.
+- A controlled migration failure was simulated in an isolated test database using a duplicate `supplier_offers` table. The migration failed as expected, and previously created tables remained, confirming that earlier DDL changes were not automatically rolled back.
+- The verified backup was restored into a separate recovery database. Migrations `001` and `002` then completed successfully, and all seven source-table row counts matched the expected baseline.
+- Final migration scripts were revalidated in a fresh isolated database. Migrations 001 and 002 executed successfully, source row counts remained unchanged, and the new tables' constraints and indexes were inspected.
+- Historical purchase headers and purchase-item records were compared row by row against the backup in the isolated recovery database. All 16 purchase records and 20 purchase-item records matched after normalizing the backup's quote formatting.
 
-The next implementation step is to prepare a verified backup and create an isolated test database for migration development.
+Remaining work:
+
+- Implement and test explicit data mappings for inventory units, package contents, and supplier offers.
+- Review unresolved package, unit, and initial-offer assumptions.
+- Complete documentation and the remaining validation checklist.
+
+The original `inventory_db` has not been modified by these tests. No production data migration has been performed.
+
+Do not consider v0.4.2 complete until the remaining migration, preservation, and recovery checks have passed.
