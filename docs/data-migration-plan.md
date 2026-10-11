@@ -138,6 +138,19 @@ Before creating an offer, verify:
 
 Historical purchases must not be rewritten to match these initial offers.
 
+**Offer Mapping Rules**
+
+- Treat each legacy product's supplier association as a candidate, not as proof that a complete offer can be created.
+- Do not copy `products.cost_price` into `supplier_offers.purchase_price` until the price basis is confirmed.
+- Require an explicitly defined package specification and verified package contents in the product's inventory base unit.
+- Confirm that the price applies to one complete package and that the minimum order quantity means the number of those packages.
+- Validate supplier, product, and package specification references in the isolated target database.
+- If the unit, package size, price basis, or minimum-order meaning is unknown, do not create the offer. Record the unresolved mapping and evidence needed.
+- Never use a current supplier offer to rewrite historical purchases, purchase-item `unit_cost`, `subtotal`, or purchase totals.
+- Test proposed mappings only in an isolated database. Do not run these steps against the original `inventory_db`.
+
+These rules define the mapping procedure; they do not approve any of the eight candidate offers or verify legacy package sizes, inventory units, prices, or minimum order quantities.
+
 ## 9. Migration Safety Strategy
 
 The migration must be tested against a separate test database, not the live `inventory_db`.
