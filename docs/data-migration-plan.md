@@ -2,312 +2,175 @@
 
 ## 1. Purpose
 
-This document defines the migration strategy for moving the existing inventory database toward the proposed procurement schema introduced in `v0.4.1`.
+This document describes the migration tooling and development-database workflow for the procurement schema introduced in `v0.4.1`.
 
-The goal of `v0.4.2` is to plan, implement, and validate data migration while preserving existing inventory data and historical purchase records.
+The goal of `v0.4.2` is to provide a reliable, repeatable way to create and upgrade an isolated development/test database, track applied migrations, and recover safely from migration failures.
 
-## 2. Migration Scope
+Legacy inventory records are disposable demonstration data. Preserving their historical rows, reconciling old purchase totals, or completing mappings for the eight legacy products is not a completion requirement for this development milestone. When GUI testing begins, sample records can be entered again through the application.
 
-The source database contains seven tables:
+## 2. Scope
 
-- `categories`
-- `suppliers`
-- `products`
-- `purchases`
-- `purchase_items`
-- `sales`
-- `sale_items`
+The migration workflow covers:
 
-The proposed procurement design introduces:
+- Creating or preparing a dedicated development/test database.
+- Applying ordered SQL migration files.
+- Recording successful migrations in `schema_migrations`.
+- Skipping migrations already recorded as applied.
+- Detecting and reporting migration failures clearly.
+- Documenting the limitations of MySQL DDL rollback and partial migration failures.
+- Providing an intentional workflow to reset and seed disposable development data.
+- Keeping the protected database `inventory_db` safe from accidental migration or reset operations.
 
-- `units`
-- `unit_conversions`
-- `package_forms`
-- `package_specifications`
-- `package_contents`
-- `supplier_offers`
+This milestone does not require migration of legacy demo records into the new procurement model.
 
-The target product design also proposes inventory base units and fractional stock quantities.
+## 3. Database Safety Rules
 
-The migration must preserve existing category, supplier, product, purchase, and sales data. Existing tables must not be destructively replaced before the migrated data has been validated.
+- Use an explicitly named development/test database for migration experiments.
+- The migration runner must require an explicit `--database` argument.
+- The runner must reject protected or non-test database names before executing migration SQL.
+- Never infer the target database from a default connection or silently fall back to `inventory_db`.
+- A reset operation must display or require the exact target database and must refuse protected databases.
+- Do not drop or reset a database until the intended development/test target has been identified.
+- Keep schema migrations and migration history separate from disposable demo records.
+- Do not put private development roadmaps or internal workflow notes into public project documentation.
 
-## 3. Source Database Baseline
+## 4. Migration Workflow
 
-The following baseline was captured from `inventory_db` during read-only inspection.
+The normal workflow is:
 
-| Table            | Existing row count |
-| ---------------- | -----------------: |
-| `categories`     |                  4 |
-| `suppliers`      |                  3 |
-| `products`       |                  8 |
-| `purchases`      |                 16 |
-| `purchase_items` |                 20 |
-| `sales`          |                  0 |
-| `sale_items`     |                  0 |
+1. Select an explicitly named development/test database.
+2. Create the database if the setup workflow is intended to do so.
+3. Apply migration files in deterministic filename order.
+4. Record each successful migration in `schema_migrations`.
+5. Skip migrations already recorded as applied.
+6. Stop on the first migration error and report the migration filename and error.
+7. Inspect the database after a failure; do not blindly rerun a partially applied migration.
+8. Run the relevant schema and application tests.
+9. Record the result in the development notes or test output.
 
-These counts are the reference values for the inspected database at the time of planning. They must be recaptured immediately before migration because the live database may change.
+A successful second run should skip previously recorded migrations rather than duplicate their effects.
 
-## 4. Verified Source Data Rules
+## 5. Migration History
 
-- Product SKUs are unique.
-- Products currently reference one supplier through `products.supplier_id`.
-- Purchases reference suppliers through `purchases.supplier_id`.
-- Purchase items store quantity, historical `unit_cost`, and historical `subtotal`.
-- Purchases store `total_amount` and `status`.
-- All 16 inspected purchases had status `COMPLETED`.
-- The purchase-item orphan check returned zero rows.
-- The purchase-total validation query returned no mismatches at a tolerance of `0.01`.
-- Sales and sale-item tables were empty during the baseline inspection.
+The `schema_migrations` table is the record of migrations successfully applied by the runner.
 
-These observations describe the inspected database and must be verified again before migration.
+The runner should:
 
-## 5. Important Historical Supplier Differences
+- Create the history table when it is missing.
+- Record a migration only after its SQL completes successfully.
+- Skip migration files already present in the history table.
+- Apply pending migrations in a stable, deterministic order.
+- Fail clearly if a migration cannot be executed.
+- Avoid marking a partially executed migration as successful.
 
-The source data contains seven purchase items where the supplier recorded on the purchase differs from the product's current supplier.
+MySQL may persist some DDL changes even when a later statement in the same migration fails. A history table alone therefore cannot guarantee that a failed migration left the schema unchanged.
 
-The differences occur in purchase IDs `17`, `20`, and `24`.
+## 6. Failure Handling and Recovery
 
-This does not automatically mean the records are invalid. Products may have been purchased from suppliers other than their currently associated supplier.
+MySQL schema statements may cause implicit commits. Do not assume a transaction rollback will undo all DDL in a failed migration.
 
-Migration rules:
+When a migration fails:
 
-- Preserve each historical `purchases.supplier_id`.
-- Preserve each historical `purchase_items.unit_cost`.
-- Preserve each historical `purchase_items.subtotal`.
-- Do not derive historical suppliers from the current `products.supplier_id`.
-- Do not overwrite historical purchase costs using current product costs or new supplier offers.
+1. Stop and capture the migration filename and error message.
+2. Keep the failed database isolated from normal application use.
+3. Inspect which tables, columns, indexes, and history entries were created before the failure.
+4. For a clean retry, create a new uniquely named disposable test database or reset the confirmed disposable database using the documented reset workflow.
+5. Re-run the complete migration sequence against that clean test database.
+6. Verify the expected schema and migration-history entries.
+7. Run the migration runner a second time and confirm that already-applied migrations are skipped.
+8. Record any known limitation or remaining failure case.
 
-## 6. Proposed Data Mapping
+Do not automatically delete partial objects from an unknown database. The recovery path must be explicit and limited to a disposable development/test target.
 
-The following mapping is a proposal and must be implemented and tested before production use.
+## 7. Development Database Reset and Demo Seed
 
-| Source data              | Proposed target mapping                         | Notes                                                                         |
-| ------------------------ | ----------------------------------------------- | ----------------------------------------------------------------------------- |
-| `categories`             | Existing categories table                       | Preserve IDs and values                                                       |
-| `suppliers`              | Existing suppliers table                        | Preserve IDs and values                                                       |
-| `products.sku`           | Target product SKU/code                         | Preserve the existing unique SKU                                              |
-| `products.name`          | Target product name                             | Preserve existing values                                                      |
-| `products.description`   | Target product description                      | Preserve nullable values                                                      |
-| `products.selling_price` | Target product selling price                    | Preserve existing values                                                      |
-| `products.quantity`      | Target fractional stock quantity                | Convert numeric representation without inventing fractional precision         |
-| `products.reorder_level` | Target fractional reorder level                 | Preserve the existing numeric value                                           |
-| `products.supplier_id`   | Initial supplier association and proposed offer | Validate package and price assumptions before creating offers                 |
-| `products.cost_price`    | Candidate initial supplier-offer price          | Confirm the meaning of this field before treating it as a current offer price |
-| `purchases`              | Existing purchase history                       | Preserve purchase IDs, suppliers, dates, totals, and statuses                 |
-| `purchase_items`         | Existing purchase history                       | Preserve item IDs, product references, quantities, unit costs, and subtotals  |
-| `sales`                  | Existing sales history                          | Preserve records if present at migration time                                 |
-| `sale_items`             | Existing sales history                          | Preserve records if present at migration time                                 |
+Development data exists to support GUI and automated testing; it is not business data that must be preserved.
 
-Final mappings must match the actual target schema and migration implementation.
+The development workflow should support:
 
-## 7. Unit and Package Mapping
+- Starting with a fresh database schema.
+- Loading a small, deterministic set of demo records when useful.
+- Clearing and re-entering demo records during GUI testing.
+- Repeating setup without duplicating seed data, or explicitly resetting the disposable database before reseeding.
+- Keeping test setup separate from any real or protected database.
 
-Existing product names do not provide enough information to determine inventory units or package configurations reliably.
+Before implementing a reset command, validate the target database name and reject protected databases. The reset workflow must not silently delete data from `inventory_db` or any database outside the explicitly supported development/test naming convention.
 
-For example, a product described as a pack does not establish how many pieces it contains.
+The reset/seed documentation should explain which operation drops data, which operation creates schema, and which operation inserts demo records.
 
-Therefore:
+## 8. Testing Requirements
 
-- Do not guess inventory units from product names.
-- Do not invent package sizes.
-- Do not assume unit conversions without explicit definitions.
-- Do not create package-content records without verified quantities.
-- Document unresolved product units and package details before completing migration.
+Tests for this milestone should cover the migration tooling itself, not the preservation of legacy demo records.
 
-Any missing unit or package information must be resolved explicitly or handled through a documented migration exception.
-
-### Legacy Package Mapping Register
-
-The following register records the current mapping status. It is a review register, not an approved source of package data.
-
-| Legacy product                 | Inventory unit | Package specification | Package contents | Status  | Evidence required                                                 |
-| ------------------------------ | -------------- | --------------------- | ---------------- | ------- | ----------------------------------------------------------------- |
-| Wireless Keyboard (`ELEC-001`) | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit, package definition and quantity basis        |
-| Wireless Mouse (`ELEC-002`)    | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit, package definition and quantity basis        |
-| USB-C Hub (`COMP-001`)         | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit, package definition and quantity basis        |
-| HDMI Cable (`COMP-002`)        | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit, package definition and quantity basis        |
-| Notebook (`OFF-001`)           | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit, package definition and quantity basis        |
-| Ballpoint Pen Pack (`OFF-002`) | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit and evidence of the number of pieces per pack |
-| Electric Kettle (`HOME-001`)   | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit, package definition and quantity basis        |
-| Table Fan (`HOME-002`)         | Unverified     | Unverified            | Unverified       | PENDING | Verified stock unit, package definition and quantity basis        |
-
-**Approval rules**
-
-- Do not infer a stock unit or package size from a product name.
-- Record the source document or other verifiable evidence for every proposed mapping.
-- Keep unsupported mappings pending; do not create corresponding package-content records.
-- Approve a mapping only after its unit, quantity and package meaning have been reviewed.
-- Record exceptions explicitly rather than silently substituting assumptions.
-
-## 8. Supplier Offer Migration
-
-The existing product-to-supplier relationship can provide a starting point for initial supplier offers.
-
-The inspected source has eight products across three suppliers:
-
-- TechSource Supplies: four products
-- OfficeMart Distributors: two products
-- HomeTech Wholesale: two products
-
-Eight initial offer records are a possible mapping, not an automatic guarantee.
-
-Before creating an offer, verify:
-
-- The source `cost_price` is suitable as the initial offer price.
-- The package specification is explicitly defined.
-- The package's inventory-unit contents are known.
-- The package price and minimum order quantity have valid meanings.
-- The supplier, product, and package specification references are valid.
-
-Historical purchases must not be rewritten to match these initial offers.
-
-**Offer Mapping Rules**
-
-- Treat each legacy product's supplier association as a candidate, not as proof that a complete offer can be created.
-- Do not copy `products.cost_price` into `supplier_offers.purchase_price` until the price basis is confirmed.
-- Require an explicitly defined package specification and verified package contents in the product's inventory base unit.
-- Confirm that the price applies to one complete package and that the minimum order quantity means the number of those packages.
-- Validate supplier, product, and package specification references in the isolated target database.
-- If the unit, package size, price basis, or minimum-order meaning is unknown, do not create the offer. Record the unresolved mapping and evidence needed.
-- Never use a current supplier offer to rewrite historical purchases, purchase-item `unit_cost`, `subtotal`, or purchase totals.
-- Test proposed mappings only in an isolated database. Do not run these steps against the original `inventory_db`.
-
-These rules define the mapping procedure; they do not approve any of the eight candidate offers or verify legacy package sizes, inventory units, prices, or minimum order quantities.
-
-## 9. Migration Safety Strategy
-
-The migration must be tested against a separate test database, not the live `inventory_db`.
-
-Required sequence:
-
-1. Capture a fresh source baseline.
-2. Create and verify a recoverable database backup.
-3. Create an isolated migration test database.
-4. Apply the target schema to the test database.
-5. Run the migration using explicit, documented mappings.
-6. Validate record counts, identifiers, relationships, and financial values.
-7. Test failure handling and rollback.
-8. Review all migration exceptions.
-9. Document the results before considering production migration.
-
-The live database must remain unchanged during planning and test migration.
-
-## 10. Validation Checklist
-
-### Record preservation
-
-- [x] Category, supplier, product, purchase, purchase-item, sales, and sale-item row counts matched the baseline after migrations in the latest fresh recovery database.
-- [x] All 16 historical purchase records and 20 purchase-item records matched the backup in the previously documented row-by-row comparison.
-- [x] Legacy product mapping fields were compared against the source in the previously verified isolated snapshot database, with zero mismatches across the documented fields.
-- [ ] Complete field-by-field preservation comparison for every legacy table in the latest fresh recovery database.
-- [ ] Existing identifiers and relationships individually verified wherever required.
-
-### Financial integrity
-
-- [x] Historical purchase headers and purchase-item records matched the backup in the previously documented row-by-row comparison.
-- [x] Purchase headers and item subtotals both total `44,805.00` in the latest fresh recovery database.
-- [x] The latest purchase reconciliation reported zero purchase-total mismatches.
-- [ ] Complete field-by-field comparison of historical purchase `unit_cost`, `subtotal`, and `total_amount` values in the latest fresh recovery database.
-- [x] No historical supplier was inferred solely from the current product-supplier relationship during mapping.
-- [x] No current supplier-offer price was used to overwrite historical purchase costs.
-
-### Schema integrity
-
-- [x] All required target tables exist in the isolated test database.
-- [x] Foreign keys were inspected and tested for the package-content parent relationship.
-- [x] Unique constraints were tested for duplicate supplier offers.
-- [x] Check constraints were tested for package quantity, supplier-offer price, and minimum order quantity.
-- [x] Package specifications reference valid package forms.
-- [x] Package contents have valid references and explicit quantities where records exist.
-- [x] Supplier offers reference valid suppliers, products, and package specifications where records exist.
-- [ ] No unsupported unit or package conversion is introduced.
-- [ ] Actual inventory-unit, package-content, and supplier-offer mappings verified against reliable source evidence.
-
-### Recovery
-
-- [x] Verified backup restored successfully into isolated recovery databases.
-- [x] A controlled migration failure was reproduced; earlier DDL changes remained after the error, confirming that MySQL did not automatically roll them back.
-- [x] Migrations `001` through `004` completed successfully in the latest fresh recovery database.
-- [x] A second migration-runner execution skipped all four recorded migrations.
-- [x] The migration runner rejected `inventory_db` at database-name validation before executing migration SQL.
-- [x] The original database was not modified by the isolated tests.
-- [ ] Complete recovery procedure for a partially applied migration documented and tested, including cleanup before retrying.
-
-## 11. Rollback Strategy
-
-Do not rely solely on transaction rollback for the entire migration. MySQL schema changes may cause implicit commits.
-
-The migration process must use a verified backup and an isolated test database. Test failures should be resolved in the test environment.
-
-Production migration must not begin until the restoration procedure has been tested and the migration results have been reviewed.
-
-## 12. Completion Criteria
-
-The `v0.4.2` migration milestone is complete only when:
-
-- The migration implementation is documented and tested.
-- All source records are accounted for.
-- Historical purchase data and supplier references are preserved.
-- Financial validation checks pass.
-- Unit and package mappings are explicit and defensible.
-- Migration failures and recovery have been tested.
-- The migration is repeatable or safely rejects an unintended second execution.
-- Documentation accurately records any unresolved limitations.
-
-## 13. Current Status
-
-**Status: IN PROGRESS — schema migration and isolated recovery tests have passed; business-data mapping and final preservation checks remain incomplete.**
-
-### Completed implementation and validation
-
-- The original source database was backed up and restored into isolated test databases. The original `inventory_db` was not modified.
-- The source baseline contained 4 categories, 3 suppliers, 8 products, 16 purchases, 20 purchase items, 0 sales, and 0 sale items.
-- Migrations `001` through `004` were applied successfully in the fresh recovery database `inventory_migration_recovery_v042_final`.
-- A second migration-runner execution skipped all four migrations because they were already recorded in `schema_migrations`.
-- The latest recovery test preserved all seven legacy table row counts.
-- Historical purchase headers and purchase-item records matched the backup in the previously documented row-by-row comparison: 16 purchases and 20 purchase items.
-- In the latest recovery database, purchase totals and item subtotals both equaled `44,805.00`, with zero purchase-total mismatches.
-- Migration `003_create_legacy_product_mapping.sql` captured all 8 legacy products. Previously documented field-level verification in `inventory_migration_snapshot_v043` found zero mismatches across category ID, supplier ID, SKU, name, description, cost price, selling price, quantity, reorder level, and creation/update timestamps.
-- The legacy product mapping migration was rerun without duplicating mapping records. Migrations already recorded by the runner were skipped on subsequent runs.
+Required checks:
+
+- Migration runner requires an explicit database target.
+- Protected database names are rejected before SQL execution.
+- Migration files are applied in deterministic order.
+- Successful migrations are recorded in `schema_migrations`.
+- A second run skips migrations already recorded.
+- A migration error is reported and is not recorded as successful.
+- Partial DDL after a failure is documented and the recovery workflow is clear.
+- Fresh database setup produces the expected target schema.
+- Reset/seed operations are scoped to disposable development/test databases.
+- The relevant existing automated test suite passes.
+
+Tests should use isolated test databases or controlled test fixtures. Do not use the protected application database as a migration test target.
+
+## 9. Existing Validation Evidence
+
+Previous isolated tests reported that:
+
+- Migrations `001` through `004` completed successfully in a fresh recovery database.
+- A second migration-runner execution skipped the four recorded migrations.
 - The migration runner rejected the protected database name `inventory_db` before executing migration SQL.
-- A controlled migration failure was reproduced in an isolated database. Earlier DDL changes remained after the error, confirming that MySQL does not automatically roll back all schema changes.
-- Schema constraints and indexes were inspected, and tests covered invalid package quantities, invalid parent relationships, duplicate supplier offers, negative offer prices, and invalid minimum order quantities.
-- Supplier-offer review safeguards require evidence for approval and a reason for rejection. The review service prevents an existing review from being overwritten.
-- The latest recovery database passed `database/validate_mappings.py`: all 8 source products have mapping records, with no missing product references, invalid statuses, or pending mappings without notes.
+- A controlled SQL failure demonstrated that earlier DDL changes can remain after an error.
+- An isolated recovery drill restored a backup and applied migrations successfully.
 
-### Recovery evidence
+These results are historical evidence from prior test runs, not a claim that the current working tree has just been re-tested. Re-run only the checks affected by implementation changes and record their actual results.
 
-The fresh recovery database was restored from `inventory_db_before_v042_test_restore.sql`. Its restore-friendly backup SHA-256 was verified twice:
+## 10. Out of Scope
 
-`F886E70328C112ECD8A3D530FC0F216A42108590CBB6899F3B8A4B13A1FB2A8C`
+The following are not blockers for `v0.4.2`:
 
-The recovery test establishes matching legacy row counts, successful application of migrations `001`–`004`, migration-runner repeatability, and aggregate purchase reconciliation. It does not establish complete field-by-field preservation for every legacy table in this specific recovery database.
+- Preserving disposable legacy categories, suppliers, products, purchases, or purchase items.
+- Field-by-field reconciliation of historical demo records.
+- Reconciliation of legacy purchase headers, item subtotals, and financial totals solely to preserve test data.
+- Obtaining real-world evidence for the unit or package sizes of the eight legacy demo products.
+- Completing initial supplier-offer mappings from legacy demo products.
+- Keeping old demo product IDs or relationships after a fresh development reset.
 
-MySQL DDL may remain partially applied after a migration failure. The runner does not automatically restore the database or clean up every partial failure; the recovery procedure must account for this limitation.
+These items may be revisited only if the project later adopts a real-data import requirement. They should not delay development of the intended procurement features.
 
-### Outstanding blockers
+## 11. Completion Criteria
 
-- All 8 legacy product mappings remain `PENDING`, with `inventory_unit_id` unset.
-- Inventory units, package sizes, package contents, and unit conversions have not been verified against reliable source evidence.
-- `database/validate_package_contents.py` correctly returns `BLOCKED` because no package specifications or package contents exist in the recovery database.
-- `database/validate_supplier_offers.py` correctly returns `BLOCKED` because no supplier offers exist in the recovery database.
-- The legacy `products.cost_price` field has not been established as a verified current supplier-offer price.
-- Supplier-offer package prices and minimum order quantities have not been verified.
-- Complete field-by-field preservation checks for every legacy table in the latest recovery database remain outstanding.
-- Recovery and cleanup of a partially applied migration still require a documented, tested procedure.
+`v0.4.2` is complete when:
 
-The validators verify structural rules and recorded review requirements. They do not independently authenticate evidence or prove that proposed business mappings reflect the real products and supplier terms.
+- The migration runner safely targets only supported development/test databases.
+- Migration history is recorded and repeat-run behavior is tested.
+- Migration failures are reported clearly and are not falsely marked successful.
+- Partial-DDL behavior and the clean-retry procedure are documented.
+- A fresh development database can be prepared from the migration files.
+- A safe, explicit reset/seed workflow is available or its remaining implementation work is clearly listed.
+- Relevant automated tests pass.
+- Documentation reflects the implemented behavior and actual validation evidence.
 
-### Remaining work
+No legacy demo-data preservation or product-mapping sign-off is required to complete this milestone.
 
-1. Obtain reliable source evidence for inventory units, package definitions, package contents, supplier-offer prices, and minimum order quantities.
-2. Document and review explicit mappings for each legacy product and any proposed initial supplier offer.
-3. Implement and test only mappings supported by that evidence. Keep unsupported mappings pending.
-4. Complete field-by-field preservation checks and verify required identifiers, relationships, historical costs, subtotals, and totals in the latest recovery database.
-5. Document and test recovery from a partially applied migration, including safe cleanup before retrying.
-6. Reconcile every validation checklist item against recorded test evidence.
-7. Re-run the test suite and documentation checks before considering the milestone complete.
+## 12. Current Status
 
-**Completion decision:** `v0.4.2` remains in progress. Do not perform a production data migration, approve unsupported mappings, or mark the milestone complete until the outstanding evidence and validation requirements have been satisfied.
+**Status: IN PROGRESS — migration runner and isolated migration checks have been exercised; the remaining work is to align implementation, reset/seed workflow, tests, and documentation with this lean scope.**
 
-The original `inventory_db` remains unchanged by these tests. No production data migration has been performed.
+Previously reported checks include successful application of migrations `001`–`004`, repeat-run skipping, protected-database rejection, and a controlled demonstration of MySQL's partial-DDL behavior. These checks should be treated as prior evidence until rerun against any changed implementation.
+
+## 13. Remaining Work
+
+1. Review the current migration runner and its database-name safety checks.
+2. Confirm that migration history, deterministic ordering, repeat-run behavior, and failure reporting are implemented and covered by tests.
+3. Define and implement the explicit development database reset/seed workflow, refusing protected database names.
+4. Ensure fresh setup works without importing or reconciling legacy demo records.
+5. Update tests and documentation to match the implemented workflow.
+6. Run the relevant tests and documentation checks once after the changes are complete.
+7. Commit each completed topic locally; do not push until the entire version is finished and ready for its version-level release steps.
+
+The original `inventory_db` must not be reset as part of this milestone unless the user explicitly identifies it as the intended disposable target and confirms the destructive operation.
