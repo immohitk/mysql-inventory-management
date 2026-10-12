@@ -1,4 +1,3 @@
-
 """Validate evidence and explicit decisions for supplier offers."""
 
 from dataclasses import dataclass
@@ -44,16 +43,21 @@ def approval_status(evidence: SupplierOfferEvidence) -> str:
 
 
 def validate_review(review: SupplierOfferReview) -> list[str]:
-    """Return review errors without changing or approving database records."""
+    """Return review errors without changing database records."""
     errors = []
 
     if review.decision not in {"APPROVED", "REJECTED", "PENDING"}:
-        errors.append("invalid_decision")
+        return ["invalid_decision"]
+
+    if review.decision in {"APPROVED", "REJECTED"}:
+        if review.reviewer is None or not review.reviewer.strip():
+            errors.append("reviewer")
 
     if review.decision == "APPROVED":
         errors.extend(missing_evidence(review.evidence))
 
-        if review.reviewer is None or not review.reviewer.strip():
-            errors.append("reviewer")
+    if review.decision == "REJECTED":
+        if review.review_notes is None or not review.review_notes.strip():
+            errors.append("review_notes")
 
     return errors

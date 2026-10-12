@@ -94,5 +94,29 @@ class TestSupplierOfferApproval(unittest.TestCase):
         self.assertEqual(validate_review(review), ["invalid_decision"])
 
 
+    def test_rejection_requires_reviewer_and_reason(self):
+        review = SupplierOfferReview(
+            evidence=SupplierOfferEvidence(None, None, None),
+            decision="REJECTED",
+            reviewer=" ",
+            review_notes=" ",
+        )
+
+        self.assertEqual(
+            validate_review(review),
+            ["reviewer", "review_notes"],
+        )
+
+    def test_rejection_with_reviewer_and_reason_is_valid(self):
+        review = SupplierOfferReview(
+            evidence=SupplierOfferEvidence(None, None, None),
+            decision="REJECTED",
+            reviewer="Reviewer 1",
+            review_notes="Supplier did not confirm package contents.",
+        )
+
+        self.assertEqual(validate_review(review), [])
+
+
 if __name__ == "__main__":
     unittest.main()
