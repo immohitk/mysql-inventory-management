@@ -57,5 +57,19 @@ class TestSupplierOfferReviewService(unittest.TestCase):
         run_mysql.assert_called_once()
 
 
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_does_not_overwrite_existing_review(self, run_mysql):
+        run_mysql.return_value.returncode = 0
+        run_mysql.return_value.stdout = "1"
+        run_mysql.return_value.stderr = ""
+
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            save_review(
+                "inventory_migration_snapshot_v043",
+                1,
+                self.make_review(),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
