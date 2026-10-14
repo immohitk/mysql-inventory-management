@@ -31,10 +31,12 @@ def main() -> None:
             SELECT COUNT(*)
             FROM package_specifications
         """,
+        
         "package_contents": """
             SELECT COUNT(*)
             FROM package_contents
         """,
+        
         "specifications_without_contents": """
             SELECT COUNT(*)
             FROM package_specifications AS ps
@@ -44,6 +46,7 @@ def main() -> None:
                 WHERE pc.package_specification_id = ps.id
             )
         """,
+        
         "contents_without_specification": """
             SELECT COUNT(*)
             FROM package_contents AS pc
@@ -51,17 +54,20 @@ def main() -> None:
                 ON ps.id = pc.package_specification_id
             WHERE ps.id IS NULL
         """,
+        
         "contents_without_valid_unit": """
             SELECT COUNT(*)
             FROM package_contents AS pc
             LEFT JOIN units AS u ON u.id = pc.unit_id
             WHERE u.id IS NULL
         """,
+        
         "contents_with_invalid_quantity": """
             SELECT COUNT(*)
             FROM package_contents
             WHERE quantity <= 0
         """,
+        
         "contents_with_invalid_form": """
             SELECT COUNT(*)
             FROM package_contents AS pc
@@ -70,6 +76,7 @@ def main() -> None:
             WHERE pc.package_form_id IS NOT NULL
               AND pf.id IS NULL
         """,
+        
         "contents_with_invalid_parent": """
             SELECT COUNT(*)
             FROM package_contents AS child
@@ -80,6 +87,38 @@ def main() -> None:
             WHERE child.parent_content_id IS NOT NULL
               AND parent.id IS NULL
         """,
+
+        "parent_chains_with_cycles": """
+            WITH RECURSIVE parent_walk
+                (start_id, current_id, path, has_cycle) AS (
+                SELECT
+                    id,
+                    id,
+                    CAST(CONCAT(',', id, ',') AS CHAR(4000)),
+                    0
+                FROM package_contents
+
+                UNION ALL
+
+                SELECT
+                    pw.start_id,
+                    pc.parent_content_id,
+                    CONCAT(pw.path, pc.parent_content_id, ','),
+                    LOCATE(
+                        CONCAT(',', pc.parent_content_id, ','),
+                        pw.path
+                    ) > 0
+                FROM parent_walk AS pw
+                JOIN package_contents AS pc
+                    ON pc.id = pw.current_id
+                WHERE pc.parent_content_id IS NOT NULL
+                  AND pw.has_cycle = 0
+            )
+            SELECT COUNT(DISTINCT start_id)
+            FROM parent_walk
+            WHERE has_cycle = 1
+        """,
+
         "offers_without_package_contents": """
             SELECT COUNT(*)
             FROM supplier_offers AS so

@@ -46,7 +46,7 @@ class TestValidatePackageContents(unittest.TestCase):
             ):
                 main()
 
-        self.assertEqual(run_mysql.call_count, 9)
+        self.assertEqual(run_mysql.call_count, 10)
 
     @patch("database.validate_package_contents.run_mysql")
     def test_empty_contents_are_blocked(self, run_mysql):
@@ -100,7 +100,9 @@ class TestValidatePackageContents(unittest.TestCase):
     def test_valid_structure_passes_with_factual_verification_caveat(
         self, run_mysql
     ):
-        counts = iter(self.valid_counts.values())
+        counts = iter([
+            2, 2, 0, 0, 0, 0, 0, 0, 0, 0
+        ])
 
         def query_result(database, sql):
             result = type("Result", (), {})()
