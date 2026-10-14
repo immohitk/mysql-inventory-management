@@ -175,23 +175,28 @@ The existing database documentation describes the current schema. The procuremen
 
 ## Database Setup
 
-The following commands initialize the existing database for local development. Use them only when setting up a fresh development database or when you intentionally want to initialize the schema.
+### Fresh development database (v0.4.2)
 
-### 1. Create the database schema
+Use a newly created, disposable development database. Do not use `inventory_db` for migration testing. The migration runner accepts database names beginning with `inventory_migration_`.
 
-```bash
-mysql -u root -p < database/schema.sql
-```
+1. Create an empty database in MySQL, for example `inventory_migration_dev`.
+2. Import the core schema into that explicitly selected database. `schema_base.sql` contains table definitions only; it does not create or select a database and does not load demo records.
 
-### 2. Load demonstration data
+   ```bash
+   mysql --login-path=inventory-migrations --database=inventory_migration_dev < database/schema_base.sql
+   ```
 
-```bash
-mysql -u root -p < database/seed.sql
-```
+3. Apply the procurement migrations in filename order. The runner records successful migrations in `schema_migrations` and skips versions already recorded.
 
-The seed file contains fictional demonstration data.
+   ```bash
+   python -m database.migrate --database inventory_migration_dev
+   ```
 
-**Existing database warning:** Do not run the proposed `database/schema_v2.sql` against `inventory_db`. It is a target design draft, not a migration script.
+4. Configure the application to use this database only after confirming the schema matches the application version. Set `DB_NAME=inventory_migration_dev` in the local `.env` file.
+
+The original `database/schema.sql` creates and selects `inventory_db`; do not use it for this workflow. `database/schema_fresh.sql` is not the migration runner's input and must not be combined with migrations because it already defines overlapping procurement tables. `database/schema_v2.sql` remains design reference material, not an executable migration.
+
+Demo data is optional and is not part of fresh schema initialization. The legacy `database/seed.sql` hard-codes `USE inventory_db`; do not run it as part of this workflow. A safe, repeatable disposable seed/reset workflow is tracked separately in v0.4.2.5.
 
 ## Configuration
 
