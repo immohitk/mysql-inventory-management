@@ -30,3 +30,4 @@ htmlcov/
 # Temporary files
 *.tmp
 *.temp
+/database/schema_fresh.sql.bak
