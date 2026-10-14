@@ -119,15 +119,18 @@ Tests should use isolated test databases or controlled test fixtures. Do not use
 
 ## 9. Existing Validation Evidence
 
-Previous isolated tests reported that:
+The following checks were completed against the isolated development database `inventory_migration_dev`:
 
-- Migrations `001` through `004` completed successfully in a fresh recovery database.
-- A second migration-runner execution skipped the four recorded migrations.
-- The migration runner rejected the protected database name `inventory_db` before executing migration SQL.
-- A controlled SQL failure demonstrated that earlier DDL changes can remain after an error.
-- An isolated recovery drill restored a backup and applied migrations successfully.
+- Imported `database/schema_base.sql` successfully.
+- Applied migrations `001` through `004` successfully.
+- Verified that all four migrations were recorded in `schema_migrations`.
+- Ran the migration runner a second time and confirmed that all four migrations were skipped as already recorded.
+- Verified that the final database contained the expected 16 tables, including the core schema, procurement tables, and `schema_migrations`.
+- Ran the automated test suite successfully: `61 passed`.
 
-These results are historical evidence from prior test runs, not a claim that the current working tree has just been re-tested. Re-run only the checks affected by implementation changes and record their actual results.
+These results confirm fresh schema setup, migration application, migration-history recording, repeat-run skipping, and the current automated test suite.
+
+A live migration-failure recovery drill has not been verified as part of this validation. MySQL may retain partial DDL after a failed migration, so recovery must continue to follow the documented isolated-database procedure.
 
 ## 10. Out of Scope
 
@@ -159,13 +162,13 @@ No legacy demo-data preservation or product-mapping sign-off is required to comp
 
 ## 12. Current Status
 
-**Status: IN PROGRESS — migration runner, isolated reset/seed utilities, and automated tests are implemented. The full test suite passes with 61 tests. Final completion review and documentation verification remain.**
+**Status: IN PROGRESS — fresh schema setup, migrations `001`–`004`, migration-history recording, repeat-run skipping, and automated tests have been verified.**
 
-The migration runner applies SQL files in deterministic filename order, records successful migrations in `schema_migrations`, skips recorded migrations, and reports execution or tracking failures. It also verifies that the connected database matches the explicitly requested target before proceeding.
+Validation was completed against the isolated development database `inventory_migration_dev`. The base schema imported successfully, all four migrations applied and were recorded, and a second runner execution skipped all four migrations. The final schema contained 16 tables.
 
-The reset and seed utilities are restricted to the supported disposable development-database naming convention. Reset is destructive and must be explicitly confirmed. The original `inventory_db` must remain protected.
+The latest automated test run completed successfully: `61 passed`.
 
-Latest automated test result: `61 passed`. This confirms the automated test suite passed; it does not, by itself, establish that a fresh MySQL database setup or a live migration recovery drill has been verified.
+A live migration-failure recovery drill has not been verified. The remaining work is to review the documentation changes, confirm the final working-tree state, and decide whether any additional validation is required before marking v0.4.2 complete.
 
 ## 13. Remaining Work
 
