@@ -79,6 +79,7 @@ def main():
     if not MYSQL.is_file():
         parser.error(f"MySQL client not found: {MYSQL}")
 
+
     # Confirm the selected database exists and is reachable.
     result = run_mysql(database, "SELECT DATABASE()")
     if result.returncode != 0:
@@ -86,6 +87,14 @@ def main():
             "Cannot connect to the selected test database:\n"
             + result.stderr.strip()
         )
+
+    connected_database = result.stdout.strip()
+    if connected_database != database:
+        parser.error(
+            f"Connected to unexpected database {connected_database!r}; "
+            f"expected {database!r}."
+        )
+
 
     # Existing migration records have no verified checksums.
     # Do not backfill them without validating the applied SQL.

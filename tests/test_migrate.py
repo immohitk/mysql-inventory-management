@@ -64,6 +64,26 @@ class TestMigrationRunner(unittest.TestCase):
         self.assertIn("connection failed", str(stderr.write.call_args_list))
 
 
+
+    @patch("database.migrate.run_mysql")
+    def test_rejects_unexpected_connected_database(self, run_mysql):
+        run_mysql.return_value = MagicMock(
+            returncode=0,
+            stdout="inventory_migration_other",
+            stderr="",
+        )
+
+        with patch("database.migrate.MYSQL") as mysql:
+            mysql.is_file.return_value = True
+
+            with self.assertRaises(SystemExit) as error:
+                self.run_main("inventory_migration_test")
+
+        self.assertEqual(error.exception.code, 2)
+        self.assertEqual(run_mysql.call_count, 1)
+
+
+
     @patch("database.migrate.run_mysql")
     def test_applies_migrations_in_order_and_skips_recorded_files(
         self, run_mysql

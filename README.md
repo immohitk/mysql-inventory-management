@@ -196,7 +196,19 @@ Use a newly created, disposable development database. Do not use `inventory_db` 
 
 The original `database/schema.sql` creates and selects `inventory_db`; do not use it for this workflow. `database/schema_fresh.sql` is not the migration runner's input and must not be combined with migrations because it already defines overlapping procurement tables. `database/schema_v2.sql` remains design reference material, not an executable migration.
 
-Demo data is optional and is not part of fresh schema initialization. The legacy `database/seed.sql` hard-codes `USE inventory_db`; do not run it as part of this workflow. A safe, repeatable disposable seed/reset workflow is tracked separately in v0.4.2.5.
+Demo data is optional and is not part of fresh schema initialization. After importing the base schema and applying migrations, you can insert the deterministic demo records into the selected disposable database:
+
+```bash
+python -m database.seed_demo --database inventory_migration_dev
+```
+
+To reset a disposable development database, use the explicit reset command below. **This drops the entire named database and recreates it empty, permanently deleting all data in that database.** Verify the target is disposable before running it; the name-prefix and confirmation checks do not prove that the data is disposable.
+
+```bash
+python -m database.reset_dev --database inventory_migration_dev --confirm-database inventory_migration_dev --confirm-reset
+```
+
+After a reset, import `database/schema_base.sql` again and rerun the migration command shown above before optionally seeding demo data. Never target `inventory_db`. The legacy `database/seed.sql` hard-codes `USE inventory_db`; do not use it for this workflow. Do not use `database/schema_fresh.sql` as migration input or combine it with the migrations, because it defines overlapping procurement tables.
 
 ## Configuration
 

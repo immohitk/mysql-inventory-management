@@ -159,9 +159,13 @@ No legacy demo-data preservation or product-mapping sign-off is required to comp
 
 ## 12. Current Status
 
-**Status: IN PROGRESS — migration runner and isolated migration checks have been exercised; the remaining work is to align implementation, reset/seed workflow, tests, and documentation with this lean scope.**
+**Status: IN PROGRESS — migration runner, isolated reset/seed utilities, and automated tests are implemented. The full test suite passes with 61 tests. Final completion review and documentation verification remain.**
 
-Previously reported checks include successful application of migrations `001`–`004`, repeat-run skipping, protected-database rejection, and a controlled demonstration of MySQL's partial-DDL behavior. These checks should be treated as prior evidence until rerun against any changed implementation.
+The migration runner applies SQL files in deterministic filename order, records successful migrations in `schema_migrations`, skips recorded migrations, and reports execution or tracking failures. It also verifies that the connected database matches the explicitly requested target before proceeding.
+
+The reset and seed utilities are restricted to the supported disposable development-database naming convention. Reset is destructive and must be explicitly confirmed. The original `inventory_db` must remain protected.
+
+Latest automated test result: `61 passed`. This confirms the automated test suite passed; it does not, by itself, establish that a fresh MySQL database setup or a live migration recovery drill has been verified.
 
 ## 13. Remaining Work
 
