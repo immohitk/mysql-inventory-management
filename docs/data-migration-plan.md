@@ -129,9 +129,7 @@ The following checks were completed against the isolated development database `i
 - Ran the automated test suite successfully: `61 passed`.
 - **Live migration-failure recovery drill:** Using the isolated `inventory_migration_recovery` database, an intentionally invalid migration was detected and rejected by the runner. The failed migration was not recorded in `schema_migrations`. MySQL retained the table created before the syntax error, confirming that partial DDL can survive a failed migration. The temporary table and migration-history table were removed afterward; verification confirmed the seven core tables remained intact. The normal migration files were not modified, and `inventory_migration_dev` and `inventory_db` were not touched during the drill.
 
-These results confirm fresh schema setup, migration application, migration-history recording, repeat-run skipping, and the current automated test suite.
-
-A live migration-failure recovery drill has not been verified as part of this validation. MySQL may retain partial DDL after a failed migration, so recovery must continue to follow the documented isolated-database procedure.
+These results confirm fresh schema setup, migration application, migration-history recording, repeat-run skipping, successful failure detection, and the current automated test suite. The live failure-recovery drill also confirmed that partial DDL can survive a failed migration.
 
 ## 10. Out of Scope
 
@@ -163,22 +161,20 @@ No legacy demo-data preservation or product-mapping sign-off is required to comp
 
 ## 12. Current Status
 
-**Status: IN PROGRESS — fresh schema setup, migrations `001`–`004`, migration-history recording, repeat-run skipping, and automated tests have been verified.**
+**Status: IN PROGRESS — fresh schema setup, migrations `001`–`004`, migration-history recording, repeat-run skipping, automated tests, and the live migration-failure recovery drill have been verified.**
 
 Validation was completed against the isolated development database `inventory_migration_dev`. The base schema imported successfully, all four migrations applied and were recorded, and a second runner execution skipped all four migrations. The final schema contained 16 tables.
 
 The latest automated test run completed successfully: `61 passed`.
 
-A live migration-failure recovery drill has not been verified. The remaining work is to review the documentation changes, confirm the final working-tree state, and decide whether any additional validation is required before marking v0.4.2 complete.
+The live recovery drill confirmed that failed migrations are not recorded as successful and that MySQL may retain partial DDL. Cleanup was verified, with the seven core tables preserved in the isolated recovery database. Remaining work is to reconcile this roadmap with completed implementation and validation, review any genuinely outstanding completion criteria, and decide whether v0.4.2 is ready to close.
 
 ## 13. Remaining Work
 
-1. Review the current migration runner and its database-name safety checks.
-2. Confirm that migration history, deterministic ordering, repeat-run behavior, and failure reporting are implemented and covered by tests.
-3. Define and implement the explicit development database reset/seed workflow, refusing protected database names.
-4. Ensure fresh setup works without importing or reconciling legacy demo records.
-5. Update tests and documentation to match the implemented workflow.
-6. Run the relevant tests and documentation checks once after the changes are complete.
-7. Commit each completed topic locally; do not push until the entire version is finished and ready for its version-level release steps.
+1. Reconcile the remaining-work list with the implementation and validation already completed.
+2. Review each completion criterion and identify any requirement that still lacks evidence.
+3. Run the relevant automated tests and documentation checks once after the final documentation edits.
+4. Review the final Git diff and working-tree state, keeping `database/schema_fresh.sql` untouched and untracked.
+5. If all completion criteria are satisfied, update the milestone status and commit the final documentation changes locally. Do not push until the entire version is finished and ready for its version-level release steps.
 
 The original `inventory_db` must not be reset as part of this milestone unless the user explicitly identifies it as the intended disposable target and confirms the destructive operation.
