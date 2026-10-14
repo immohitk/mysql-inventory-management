@@ -126,7 +126,7 @@ The following checks were completed against the isolated development database `i
 - Verified that all four migrations were recorded in `schema_migrations`.
 - Ran the migration runner a second time and confirmed that all four migrations were skipped as already recorded.
 - Verified that the final database contained the expected 16 tables, including the core schema, procurement tables, and `schema_migrations`.
-- Ran the automated test suite successfully: `61 passed`.
+- Ran the automated test suite successfully: `63 passed`.
 - **Live migration-failure recovery drill:** Using the isolated `inventory_migration_recovery` database, an intentionally invalid migration was detected and rejected by the runner. The failed migration was not recorded in `schema_migrations`. MySQL retained the table created before the syntax error, confirming that partial DDL can survive a failed migration. The temporary table and migration-history table were removed afterward; verification confirmed the seven core tables remained intact. The normal migration files were not modified, and `inventory_migration_dev` and `inventory_db` were not touched during the drill.
 
 These results confirm fresh schema setup, migration application, migration-history recording, repeat-run skipping, successful failure detection, and the current automated test suite. The live failure-recovery drill also confirmed that partial DDL can survive a failed migration.
@@ -165,7 +165,7 @@ No legacy demo-data preservation or product-mapping sign-off is required to comp
 
 Validation was completed against the isolated development database `inventory_migration_dev`. The base schema imported successfully, all four migrations applied and were recorded, and a second runner execution skipped all four migrations. The final schema contained 16 tables.
 
-The latest automated test run completed successfully: `61 passed`.
+The latest automated test run completed successfully: `63 passed`.
 
 The live recovery drill confirmed that failed migrations are not recorded as successful and that MySQL may retain partial DDL. Cleanup was verified, with the seven core tables preserved in the isolated recovery database. Remaining work is to reconcile this roadmap with completed implementation and validation, review any genuinely outstanding completion criteria, and decide whether v0.4.2 is ready to close.
 
