@@ -31,3 +31,4 @@ htmlcov/
 *.tmp
 *.temp
 /database/schema_fresh.sql.bak
+/database/seed_demo.py.bak

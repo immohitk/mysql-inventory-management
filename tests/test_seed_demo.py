@@ -1,0 +1,46 @@
+﻿import unittest
+from unittest.mock import patch
+
+from database import seed_demo
+
+
+class TestSeedDemo(unittest.TestCase):
+    def test_rejects_production_database_name(self):
+        with patch.object(seed_demo, "MYSQL") as mysql_path:
+            mysql_path.is_file.return_value = True
+            with patch("sys.argv", ["seed_demo.py", "--database", "inventory_db"]):
+                with self.assertRaises(SystemExit) as exc:
+                    seed_demo.main()
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_rejects_database_name_with_sql_punctuation(self):
+        with patch("sys.argv", ["seed_demo.py", "--database", "inventory_migration_dev;DROP"]):
+            with self.assertRaises(SystemExit) as exc:
+                seed_demo.main()
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_generated_sql_starts_transaction_and_commits(self):
+        sql = seed_demo.build_seed_sql()
+        self.assertTrue(sql.startswith("START TRANSACTION;"))
+        self.assertIn("COMMIT;", sql)
+
+    def test_generated_sql_contains_expected_demo_records(self):
+        sql = seed_demo.build_seed_sql()
+        for sku in (
+            "ELEC-001", "ELEC-002", "COMP-001", "COMP-002",
+            "OFF-001", "OFF-002", "HOME-001", "HOME-002",
+        ):
+            self.assertIn(sku, sql)
+
+    def test_generated_sql_skips_existing_products(self):
+        sql = seed_demo.build_seed_sql()
+        self.assertIn("NOT EXISTS (SELECT 1 FROM products", sql)
+
+    def test_generated_sql_does_not_select_legacy_database(self):
+        sql = seed_demo.build_seed_sql()
+        self.assertNotIn("USE inventory_db", sql)
+        self.assertNotIn("DROP TABLE", sql)
+
+
+if __name__ == "__main__":
+    unittest.main()
