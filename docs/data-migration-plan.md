@@ -167,7 +167,7 @@ Validation was completed against the isolated development database `inventory_mi
 
 The latest automated test run completed successfully: `63 passed`.
 
-The live recovery drill confirmed that failed migrations are not recorded as successful and that MySQL may retain partial DDL. Cleanup was verified, with the seven core tables preserved in the isolated recovery database. Remaining work is to reconcile this roadmap with completed implementation and validation, review any genuinely outstanding completion criteria, and decide whether v0.4.2 is ready to close.
+The live recovery drill confirmed that failed migrations are not recorded as successful and that MySQL may retain partial DDL. Cleanup was verified, with the seven core tables preserved in the isolated recovery database. The completion criteria have been reviewed against the implementation and validation evidence. The milestone is closed locally; no push has been performed.
 
 ## 13. Remaining Work
 
@@ -175,6 +175,6 @@ The live recovery drill confirmed that failed migrations are not recorded as suc
 2. Review each completion criterion and identify any requirement that still lacks evidence.
 3. Run the relevant automated tests and documentation checks once after the final documentation edits.
 4. Review the final Git diff and working-tree state, keeping `database/schema_fresh.sql` untouched and untracked.
-5. If all completion criteria are satisfied, update the milestone status and commit the final documentation changes locally. Do not push until the entire version is finished and ready for its version-level release steps.
+5. The v0.4.2 milestone is complete and committed locally. Do not push until the entire version is finished and ready for its version-level release steps.
 
 The original `inventory_db` must not be reset as part of this milestone unless the user explicitly identifies it as the intended disposable target and confirms the destructive operation.
