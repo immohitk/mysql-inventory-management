@@ -4,14 +4,16 @@ A desktop inventory management application built with Python, Tkinter, and MySQL
 
 ## Project Status
 
-**Current version:** `v0.4.1` — Schema Redesign
-**Status:** Procurement schema design completed; data migration and related application changes are pending.
+**Current version:** `v0.4.2` — Data Migration
+**Status:** Migration tooling implemented, validated, and committed locally; release publication is pending.
 
-The project includes the original database schema, database connection layer, CRUD services, and basic GUI for categories, products, and suppliers. The purchasing and stock-in milestone was released in `v0.4.0`.
+The project includes the original database schema, database connection layer, CRUD services, and desktop GUI for categories, products, and suppliers. Purchasing and stock-in functionality was introduced in `v0.4.0`.
 
-Version `v0.4.1` introduces a proposed procurement database redesign that separates product inventory units from supplier-specific purchase offers and package specifications.
+Version `v0.4.1` introduced the procurement database redesign, separating product inventory units from supplier-specific purchase offers and package specifications.
 
-**Important:** The procurement schema is a design draft, not a migration script. The existing `inventory_db` must not be modified using `database/schema_v2.sql`. Data migration is planned for `v0.4.2`.
+Version `v0.4.2` adds a guarded development-database reset utility, environment-configurable migration and demo-seeding tools, migration-history tracking, repeat-run skipping, explicit target-database verification, and documented recovery procedures for migration failures.
+
+**Important:** The existing `inventory_db` remains protected. Do not execute `database/schema_v2.sql` against it. The fresh development workflow uses `database/schema_base.sql` followed by the migration runner, with optional demo seeding against an explicitly named development/test database.
 
 ## Goals
 
@@ -60,7 +62,7 @@ The project development includes:
 - Proposed procurement schema redesign in `v0.4.1`
 - Procurement schema design documentation
 
-The procurement redesign is currently a schema and documentation milestone. The proposed supplier-offer service, package and unit logic, data migration, and related purchase workflow integration are planned for subsequent versions.
+The procurement schema redesign was introduced in `v0.4.1`, and the migration tooling was completed and validated in `v0.4.2`. The supplier-offer service is planned for `v0.4.3`, package and unit logic for `v0.4.4`, and related purchase workflow integration for `v0.4.5`.
 
 ## Database
 
