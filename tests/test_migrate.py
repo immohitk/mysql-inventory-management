@@ -125,6 +125,20 @@ class TestMigrationRunner(unittest.TestCase):
         self.assertEqual(run_mysql.call_count, 4)
 
     @patch("database.migrate.run_mysql")
+    def test_reports_migration_tracking_failure(self, run_mysql):
+        run_mysql.side_effect = [
+            MagicMock(returncode=0, stdout="inventory_migration_test", stderr=""),
+            MagicMock(returncode=0, stdout="", stderr=""),
+            MagicMock(returncode=0, stdout="0", stderr=""),
+            MagicMock(returncode=0, stdout="", stderr=""),
+            MagicMock(returncode=1, stdout="", stderr="tracking insert failed"),
+        ]
+        with patch("database.migrate.MIGRATIONS_DIR", Path("database/migrations")):
+            with self.assertRaisesRegex(RuntimeError, "executed but tracking failed"):
+                self.run_main()
+        self.assertEqual(run_mysql.call_count, 5)
+
+    @patch("database.migrate.run_mysql")
     def test_reports_empty_migrations_directory(self, run_mysql):
         run_mysql.side_effect = [
             MagicMock(returncode=0, stdout="inventory_migration_test", stderr=""),
