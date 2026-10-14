@@ -8,9 +8,14 @@ from database import migrate
 
 
 class TestMigrationRunner(unittest.TestCase):
-    def run_main(self, database="inventory_migration_test"):
+    def run_main(self, database="inventory_migration_test", mysql_exists=True):
         with patch("sys.argv", ["migrate.py", "--database", database]):
-            migrate.main()
+            if mysql_exists:
+                with patch("database.migrate.MYSQL") as mysql:
+                    mysql.is_file.return_value = True
+                    migrate.main()
+            else:
+                migrate.main()
 
     @patch("database.migrate.run_mysql")
     def test_rejects_protected_database_before_sql(self, run_mysql):
@@ -34,7 +39,7 @@ class TestMigrationRunner(unittest.TestCase):
         mysql.is_file.return_value = False
 
         with self.assertRaises(SystemExit) as error:
-            self.run_main()
+            self.run_main(mysql_exists=False)
 
         self.assertEqual(error.exception.code, 2)
         run_mysql.assert_not_called()
