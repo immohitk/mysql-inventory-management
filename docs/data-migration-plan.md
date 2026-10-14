@@ -127,6 +127,7 @@ The following checks were completed against the isolated development database `i
 - Ran the migration runner a second time and confirmed that all four migrations were skipped as already recorded.
 - Verified that the final database contained the expected 16 tables, including the core schema, procurement tables, and `schema_migrations`.
 - Ran the automated test suite successfully: `61 passed`.
+- **Live migration-failure recovery drill:** Using the isolated `inventory_migration_recovery` database, an intentionally invalid migration was detected and rejected by the runner. The failed migration was not recorded in `schema_migrations`. MySQL retained the table created before the syntax error, confirming that partial DDL can survive a failed migration. The temporary table and migration-history table were removed afterward; verification confirmed the seven core tables remained intact. The normal migration files were not modified, and `inventory_migration_dev` and `inventory_db` were not touched during the drill.
 
 These results confirm fresh schema setup, migration application, migration-history recording, repeat-run skipping, and the current automated test suite.
 
