@@ -1,12 +1,13 @@
-﻿"""Safely seed repeatable demo data into an isolated migration database."""
+"""Safely seed repeatable demo data into an isolated migration database."""
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-MYSQL = Path(r"C:\Program Files\MySQL\MySQL Server 9.7\bin\mysql.exe")
-LOGIN_PATH = "inventory-migrations"
+MYSQL = Path(os.environ.get("MYSQL_CLIENT", r"C:\Program Files\MySQL\MySQL Server 9.7\bin\mysql.exe"))
+LOGIN_PATH = os.environ.get("MYSQL_LOGIN_PATH", "inventory-migrations")
 DEMO_PREFIX = "inventory_migration_"
 
 CATEGORIES = [
