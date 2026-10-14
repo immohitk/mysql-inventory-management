@@ -105,6 +105,41 @@ def main():
         return 1
 
     try:
+        connection_check = subprocess.run(
+            [
+                str(MYSQL),
+                f"--login-path={LOGIN_PATH}",
+                f"--database={database}",
+                "--batch",
+                "--skip-column-names",
+                "--execute",
+                "SELECT DATABASE()",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        print(f"Could not launch MySQL: {exc}", file=sys.stderr)
+        return 1
+
+    if connection_check.returncode != 0:
+        print(
+            connection_check.stderr.strip() or "MySQL connection failed.",
+            file=sys.stderr,
+        )
+        return 1
+
+    connected_database = connection_check.stdout.strip()
+    if connected_database != database:
+        print(
+            f"Connected to unexpected database {connected_database!r}; "
+            f"expected {database!r}.",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
         result = subprocess.run(
             [
                 str(MYSQL),

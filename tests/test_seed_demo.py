@@ -42,5 +42,45 @@ class TestSeedDemo(unittest.TestCase):
         self.assertNotIn("DROP TABLE", sql)
 
 
+    @patch("database.seed_demo.subprocess.run")
+    @patch("database.seed_demo.MYSQL")
+    def test_rejects_unexpected_connected_database(self, mysql, run_mysql):
+        mysql.is_file.return_value = True
+        run_mysql.return_value = unittest.mock.MagicMock(
+            returncode=0,
+            stdout="inventory_migration_other\n",
+            stderr="",
+        )
+
+        with patch(
+            "sys.argv",
+            ["seed_demo.py", "--database", "inventory_migration_dev"],
+        ):
+            result = seed_demo.main()
+
+        self.assertEqual(result, 1)
+        run_mysql.assert_called_once()
+        self.assertIn("SELECT DATABASE()", run_mysql.call_args.args[0][-1])
+
+    @patch("database.seed_demo.subprocess.run")
+    @patch("database.seed_demo.MYSQL")
+    def test_stops_when_connection_check_fails(self, mysql, run_mysql):
+        mysql.is_file.return_value = True
+        run_mysql.return_value = unittest.mock.MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="connection failed",
+        )
+
+        with patch(
+            "sys.argv",
+            ["seed_demo.py", "--database", "inventory_migration_dev"],
+        ):
+            result = seed_demo.main()
+
+        self.assertEqual(result, 1)
+        run_mysql.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
