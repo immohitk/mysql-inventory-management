@@ -161,7 +161,7 @@ No legacy demo-data preservation or product-mapping sign-off is required to comp
 
 ## 12. Current Status
 
-**Status: IN PROGRESS — fresh schema setup, migrations `001`–`004`, migration-history recording, repeat-run skipping, automated tests, and the live migration-failure recovery drill have been verified.**
+**Status: COMPLETE — fresh schema setup, migrations `001`–`004`, migration-history recording, repeat-run skipping, automated tests, and the live migration-failure recovery drill have been verified.**
 
 Validation was completed against the isolated development database `inventory_migration_dev`. The base schema imported successfully, all four migrations applied and were recorded, and a second runner execution skipped all four migrations. The final schema contained 16 tables.
 
