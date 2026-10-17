@@ -179,6 +179,59 @@ class TestSupplierOfferService(unittest.TestCase):
         self.assertEqual(params, (False, 7))
         self.db.commit.assert_called_once()
 
+    def test_activate_offer_uses_active_update(self):
+        self.db.execute.return_value.rowcount = 1
+
+        result = self.service.activate_offer(7)
+
+        self.assertEqual(result, 1)
+        query, params = self.db.execute.call_args.args
+        self.assertIn("SET is_active = %s", query)
+        self.assertEqual(params, (True, 7))
+        self.db.commit.assert_called_once()
+        self.db.rollback.assert_not_called()
+
+    def test_deactivate_missing_offer_raises_and_rolls_back(self):
+        update_cursor = MagicMock()
+        update_cursor.rowcount = 0
+        check_cursor = MagicMock()
+        check_cursor.fetchone.return_value = None
+        self.db.execute.side_effect = [update_cursor, check_cursor]
+
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            self.service.deactivate_offer(99)
+
+        self.db.rollback.assert_called_once()
+        self.db.commit.assert_not_called()
+        update_cursor.close.assert_called_once()
+        check_cursor.close.assert_called_once()
+
+    def test_activate_missing_offer_raises_and_rolls_back(self):
+        update_cursor = MagicMock()
+        update_cursor.rowcount = 0
+        check_cursor = MagicMock()
+        check_cursor.fetchone.return_value = None
+        self.db.execute.side_effect = [update_cursor, check_cursor]
+
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            self.service.activate_offer(99)
+
+        self.db.rollback.assert_called_once()
+        self.db.commit.assert_not_called()
+        update_cursor.close.assert_called_once()
+        check_cursor.close.assert_called_once()
+
+    def test_activate_database_error_rolls_back(self):
+        self.db.execute.side_effect = Error(
+            errno=2000, msg="simulated database failure"
+        )
+
+        with self.assertRaises(Error):
+            self.service.activate_offer(7)
+
+        self.db.rollback.assert_called_once()
+        self.db.commit.assert_not_called()
+
     def test_update_missing_offer_raises_and_rolls_back(self):
         self.db.execute.return_value.rowcount = 0
         self.db.execute.return_value.fetchone.return_value = None
