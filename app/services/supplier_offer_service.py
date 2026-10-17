@@ -5,6 +5,8 @@ from mysql.connector import Error
 
 from app.db.connection import DatabaseConnection
 
+from app.repositories.supplier_offer_repository import SupplierOfferRepository
+
 
 class SupplierOfferService:
     """Manage supplier offers without mixing offer CRUD with review approval."""
@@ -12,6 +14,7 @@ class SupplierOfferService:
     def __init__(self, db=None):
         self.db = db or DatabaseConnection()
         self._owns_connection = db is None
+        self.repository = SupplierOfferRepository(self.db)
 
     @staticmethod
     def _validate_id(value, field_name):
@@ -147,89 +150,33 @@ class SupplierOfferService:
     def get_offer(self, offer_id):
         """Return one offer, or None if it does not exist."""
         offer_id = self._validate_id(offer_id, "Offer ID")
-        cursor = self.db.execute(
-            """
-            SELECT id, supplier_id, product_id, package_specification_id,
-                   minimum_order_quantity, purchase_price, is_active,
-                   created_at, updated_at
-            FROM supplier_offers
-            WHERE id = %s
-            """,
-            (offer_id,),
-        )
-        try:
-            return cursor.fetchone()
-        finally:
-            cursor.close()
+        return self.repository.get_by_id(offer_id)
 
     def get_all_offers(self, active_only=False):
         """Return offers ordered by ID, optionally excluding inactive offers."""
         if not isinstance(active_only, bool):
             raise ValueError("active_only must be a boolean.")
-
-        query = """
-            SELECT id, supplier_id, product_id, package_specification_id,
-                   minimum_order_quantity, purchase_price, is_active,
-                   created_at, updated_at
-            FROM supplier_offers
-        """
-        if active_only:
-            query += " WHERE is_active = TRUE"
-        query += " ORDER BY id"
-
-        cursor = self.db.execute(query)
-        try:
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+        return self.repository.list_all(active_only=active_only)
 
     def get_offers_by_supplier(self, supplier_id, active_only=False):
         """Return offers belonging to one supplier."""
         supplier_id = self._validate_id(supplier_id, "Supplier ID")
         if not isinstance(active_only, bool):
             raise ValueError("active_only must be a boolean.")
-
-        query = """
-            SELECT id, supplier_id, product_id, package_specification_id,
-                   minimum_order_quantity, purchase_price, is_active,
-                   created_at, updated_at
-            FROM supplier_offers
-            WHERE supplier_id = %s
-        """
-        params = [supplier_id]
-        if active_only:
-            query += " AND is_active = TRUE"
-        query += " ORDER BY id"
-
-        cursor = self.db.execute(query, tuple(params))
-        try:
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+        return self.repository.list_by_supplier(
+            supplier_id,
+            active_only=active_only,
+        )
 
     def get_offers_by_product(self, product_id, active_only=False):
         """Return offers for one product."""
         product_id = self._validate_id(product_id, "Product ID")
         if not isinstance(active_only, bool):
             raise ValueError("active_only must be a boolean.")
-
-        query = """
-            SELECT id, supplier_id, product_id, package_specification_id,
-                   minimum_order_quantity, purchase_price, is_active,
-                   created_at, updated_at
-            FROM supplier_offers
-            WHERE product_id = %s
-        """
-        params = [product_id]
-        if active_only:
-            query += " AND is_active = TRUE"
-        query += " ORDER BY id"
-
-        cursor = self.db.execute(query, tuple(params))
-        try:
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+        return self.repository.list_by_product(
+            product_id,
+            active_only=active_only,
+        )
 
     def update_offer(
         self,

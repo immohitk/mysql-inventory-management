@@ -121,30 +121,52 @@ class TestSupplierOfferService(unittest.TestCase):
 
         self.db.rollback.assert_called_once()
 
-    def test_get_offer_closes_cursor(self):
-        cursor = self.db.execute.return_value
-        cursor.fetchone.return_value = (7, 1, 2, 3)
+    def test_get_offer_delegates_to_repository(self):
+        expected_offer = (7, 1, 2, 3)
+        self.service.repository.get_by_id = MagicMock(
+            return_value=expected_offer
+        )
 
         result = self.service.get_offer(7)
 
-        self.assertEqual(result, (7, 1, 2, 3))
-        cursor.close.assert_called_once()
+        self.assertEqual(result, expected_offer)
+        self.service.repository.get_by_id.assert_called_once_with(7)
+        self.db.execute.assert_not_called()
+
+    def test_get_offer_rejects_invalid_id_before_repository_call(self):
+        self.service.repository.get_by_id = MagicMock()
+
+        for value in (0, -1, True, "1"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    self.service.get_offer(value)
+
+        self.service.repository.get_by_id.assert_not_called()
+        self.db.execute.assert_not_called()
 
     def test_get_all_offers_rejects_non_boolean_filter(self):
+        self.service.repository.list_all = MagicMock()
+
         with self.assertRaises(ValueError):
             self.service.get_all_offers(active_only=1)
 
+        self.service.repository.list_all.assert_not_called()
         self.db.execute.assert_not_called()
 
-    def test_get_all_offers_can_filter_active(self):
-        cursor = self.db.execute.return_value
-        cursor.fetchall.return_value = [(7,)]
+
+    def test_get_all_offers_delegates_active_filter_to_repository(self):
+        expected_offers = [(7,)]
+        self.service.repository.list_all = MagicMock(
+            return_value=expected_offers
+        )
 
         result = self.service.get_all_offers(active_only=True)
 
-        self.assertEqual(result, [(7,)])
-        self.assertIn("WHERE is_active = TRUE", self.db.execute.call_args.args[0])
-        cursor.close.assert_called_once()
+        self.assertEqual(result, expected_offers)
+        self.service.repository.list_all.assert_called_once_with(
+            active_only=True
+        )
+        self.db.execute.assert_not_called()
 
     def test_deactivate_offer_uses_soft_deactivation(self):
         self.db.execute.return_value.rowcount = 1
@@ -223,6 +245,56 @@ class TestSupplierOfferService(unittest.TestCase):
         self.assertEqual(self.db.execute.call_count, 2)
         self.db.commit.assert_called_once()
         self.db.rollback.assert_not_called()
+
+    def test_get_offers_by_supplier_delegates_to_repository(self):
+        expected = [(7,)]
+        self.service.repository.list_by_supplier = MagicMock(
+            return_value=expected
+        )
+
+        result = self.service.get_offers_by_supplier(12, active_only=True)
+
+        self.assertEqual(result, expected)
+        self.service.repository.list_by_supplier.assert_called_once_with(
+            12, active_only=True
+        )
+        self.db.execute.assert_not_called()
+
+    def test_get_offers_by_supplier_rejects_invalid_id(self):
+        self.service.repository.list_by_supplier = MagicMock()
+
+        for value in (0, -1, True, "12"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    self.service.get_offers_by_supplier(value)
+
+        self.service.repository.list_by_supplier.assert_not_called()
+        self.db.execute.assert_not_called()
+
+    def test_get_offers_by_product_delegates_to_repository(self):
+        expected = [(8,)]
+        self.service.repository.list_by_product = MagicMock(
+            return_value=expected
+        )
+
+        result = self.service.get_offers_by_product(23, active_only=True)
+
+        self.assertEqual(result, expected)
+        self.service.repository.list_by_product.assert_called_once_with(
+            23, active_only=True
+        )
+        self.db.execute.assert_not_called()
+
+    def test_get_offers_by_product_rejects_invalid_id(self):
+        self.service.repository.list_by_product = MagicMock()
+
+        for value in (0, -1, True, "23"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    self.service.get_offers_by_product(value)
+
+        self.service.repository.list_by_product.assert_not_called()
+        self.db.execute.assert_not_called()
 
 
 if __name__ == "__main__":
