@@ -307,6 +307,14 @@ class TestMigrationRunner(unittest.TestCase):
                 stdout="001_create_base_procurement_tables.sql\n",
                 stderr="",
             ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "version\tvarchar\t255\tNO\tPRI\t\n"
+                    "applied_at\ttimestamp\tNULL\tNO\tCURRENT_TIMESTAMP\n"
+                ),
+                stderr="",
+            ),
         ]
 
         with patch("sys.stderr"):
@@ -379,6 +387,14 @@ class TestMigrationRunner(unittest.TestCase):
                 stdout="999_unknown_migration.sql\n",
                 stderr="",
             ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "version\tvarchar\t255\tNO\tPRI\t\n"
+                    "applied_at\ttimestamp\tNULL\tNO\tCURRENT_TIMESTAMP\n"
+                ),
+                stderr="",
+            ),
         ]
 
         with patch("sys.stderr"):
@@ -387,6 +403,125 @@ class TestMigrationRunner(unittest.TestCase):
 
         self.assertEqual(error.exception.code, 2)
         self.assertEqual(run_mysql.call_count, 3)
+
+    @patch("database.migrate.run_mysql")
+    def test_rejects_history_version_without_primary_key(self, run_mysql):
+        run_mysql.side_effect = [
+            MagicMock(
+                returncode=0,
+                stdout="inventory_migration_test",
+                stderr="",
+            ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "categories\n"
+                    "products\n"
+                    "purchase_items\n"
+                    "purchases\n"
+                    "sale_items\n"
+                    "sales\n"
+                    "schema_migrations\n"
+                    "suppliers\n"
+                ),
+                stderr="",
+            ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "version\tvarchar\t255\tNO\t\t\n"
+                    "applied_at\ttimestamp\tNULL\tNO\tCURRENT_TIMESTAMP\n"
+                ),
+                stderr="",
+            ),
+        ]
+
+        with patch("sys.stderr"):
+            with self.assertRaises(SystemExit) as error:
+                self.run_main()
+
+        self.assertEqual(error.exception.code, 2)
+        self.assertEqual(run_mysql.call_count, 3)
+
+    @patch("database.migrate.run_mysql")
+    def test_rejects_history_version_with_wrong_type(self, run_mysql):
+        run_mysql.side_effect = [
+            MagicMock(
+                returncode=0,
+                stdout="inventory_migration_test",
+                stderr="",
+            ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "categories\n"
+                    "products\n"
+                    "purchase_items\n"
+                    "purchases\n"
+                    "sale_items\n"
+                    "sales\n"
+                    "schema_migrations\n"
+                    "suppliers\n"
+                ),
+                stderr="",
+            ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "version\ttext\tNULL\tNO\tPRI\t\n"
+                    "applied_at\ttimestamp\tNULL\tNO\tCURRENT_TIMESTAMP\n"
+                ),
+                stderr="",
+            ),
+        ]
+
+        with patch("sys.stderr"):
+            with self.assertRaises(SystemExit) as error:
+                self.run_main()
+
+        self.assertEqual(error.exception.code, 2)
+        self.assertEqual(run_mysql.call_count, 3)
+
+
+    @patch("database.migrate.run_mysql")
+    def test_rejects_history_applied_at_without_default(self, run_mysql):
+        run_mysql.side_effect = [
+            MagicMock(
+                returncode=0,
+                stdout="inventory_migration_test",
+                stderr="",
+            ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "categories\n"
+                    "products\n"
+                    "purchase_items\n"
+                    "purchases\n"
+                    "sale_items\n"
+                    "sales\n"
+                    "schema_migrations\n"
+                    "suppliers\n"
+                ),
+                stderr="",
+            ),
+            MagicMock(
+                returncode=0,
+                stdout=(
+                    "version\tvarchar\t255\tNO\tPRI\t\n"
+                    "applied_at\ttimestamp\tNULL\tNO\t\t\n"
+                ),
+                stderr="",
+            ),
+        ]
+
+        with patch("sys.stderr"):
+            with self.assertRaises(SystemExit) as error:
+                self.run_main()
+
+        self.assertEqual(error.exception.code, 2)
+        self.assertEqual(run_mysql.call_count, 3)
+
 
 
 if __name__ == "__main__":

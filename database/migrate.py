@@ -174,12 +174,15 @@ def main():
 
     history_table_exists = "schema_migrations" in existing_tables
 
-    
-    history_table_exists = "schema_migrations" in existing_tables
-
     if history_table_exists:
         columns_sql = """
-            SELECT COLUMN_NAME
+            SELECT
+                COLUMN_NAME,
+                DATA_TYPE,
+                CHARACTER_MAXIMUM_LENGTH,
+                IS_NULLABLE,
+                COLUMN_KEY,
+                COLUMN_DEFAULT
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = DATABASE()
               AND TABLE_NAME = 'schema_migrations'
@@ -193,18 +196,63 @@ def main():
                 + result.stderr.strip()
             )
 
-        history_columns = {
-            column.strip()
-            for column in result.stdout.splitlines()
-            if column.strip()
-        }
-        required_history_columns = {"version", "applied_at"}
-        missing_history_columns = required_history_columns - history_columns
+        history_columns = {}
 
-        if missing_history_columns:
+        for line in result.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) != 6:
+                parser.error(
+                    "Migration history table has an invalid column definition."
+                )
+
+            (
+                name,
+                data_type,
+                length,
+                nullable,
+                column_key,
+                column_default,
+            ) = parts
+            history_columns[name.strip()] = {
+                "data_type": data_type.strip().lower(),
+                "length": length.strip(),
+                "nullable": nullable.strip().upper(),
+                "column_key": column_key.strip().upper(),
+                "default": column_default.strip().lower(),
+            }
+
+        version_column = history_columns.get("version")
+        applied_at_column = history_columns.get("applied_at")
+
+        if version_column is None or applied_at_column is None:
+            missing_columns = sorted(
+                {"version", "applied_at"} - set(history_columns)
+            )
             parser.error(
                 "Migration history table is missing required columns: "
-                + ", ".join(sorted(missing_history_columns))
+                + ", ".join(missing_columns)
+            )
+
+        if (
+            version_column["data_type"] != "varchar"
+            or version_column["length"] != "255"
+            or version_column["nullable"] != "NO"
+            or version_column["column_key"] != "PRI"
+        ):
+            parser.error(
+                "Migration history column 'version' must be "
+                "VARCHAR(255) NOT NULL PRIMARY KEY."
+            )
+
+        if (
+            applied_at_column["data_type"] != "timestamp"
+            or applied_at_column["nullable"] != "NO"
+            or applied_at_column["default"].replace("()", "").strip()
+            != "current_timestamp"
+        ):
+            parser.error(
+                "Migration history column 'applied_at' must be "
+                "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP."
             )
 
         result = run_mysql(
@@ -232,9 +280,17 @@ def main():
             )
 
         for version in recorded_versions:
-            expected_tables = migration_table_groups[version]
+            expected_tables = migration_table_groups.get(version)
+
+            if expected_tables is None:
+                parser.error(
+                    f"Migration {version} has no expected-table mapping."
+                )
+
             if not expected_tables.issubset(existing_tables):
-                missing_tables = sorted(expected_tables - existing_tables)
+                missing_tables = sorted(
+                    expected_tables - existing_tables
+                )
                 parser.error(
                     f"Migration {version} is recorded, but tables are missing: "
                     + ", ".join(missing_tables)
