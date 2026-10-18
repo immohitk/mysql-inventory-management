@@ -95,10 +95,172 @@ def main():
             f"expected {database!r}."
         )
 
+    
+    # Inspect existing tables before making any database changes.
+    inspection_sql = """
+        SELECT TABLE_NAME
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+        ORDER BY TABLE_NAME
+    """
+    result = run_mysql(database, inspection_sql)
 
-    # Existing migration records have no verified checksums.
-    # Do not backfill them without validating the applied SQL.
-    # Create the migration history table if needed.
+    if result.returncode != 0:
+        parser.error(
+            "Cannot inspect the selected test database schema:\n"
+            + result.stderr.strip()
+        )
+
+    existing_tables = {
+        table.strip()
+        for table in result.stdout.splitlines()
+        if table.strip()
+    }
+
+    base_tables = {
+        "categories",
+        "suppliers",
+        "products",
+        "purchases",
+        "purchase_items",
+        "sales",
+        "sale_items",
+    }
+
+    if not base_tables.issubset(existing_tables):
+        missing_tables = sorted(base_tables - existing_tables)
+        parser.error(
+            "Database is missing required base tables: "
+            + ", ".join(missing_tables)
+        )
+
+    migrations = sorted(MIGRATIONS_DIR.glob("*.sql"))
+    if not migrations:
+        raise RuntimeError(
+            f"No migration files found in {MIGRATIONS_DIR}"
+        )
+
+    migration_table_groups = {
+        "001_create_base_procurement_tables.sql": {
+            "units",
+            "unit_conversions",
+            "package_forms",
+        },
+        "002_create_package_and_supplier_tables.sql": {
+            "package_specifications",
+            "package_contents",
+            "supplier_offers",
+        },
+        "003_create_legacy_product_mapping.sql": {
+            "legacy_product_mapping",
+        },
+        "004_supplier_offer_evidence.sql": {
+            "supplier_offer_reviews",
+        },
+    }
+
+    migration_versions = {migration.name for migration in migrations}
+
+    for migration_name, expected_tables in migration_table_groups.items():
+        present_tables = expected_tables & existing_tables
+
+        if present_tables and present_tables != expected_tables:
+            missing_tables = sorted(expected_tables - present_tables)
+            parser.error(
+                f"Partial migration state detected for {migration_name}; "
+                "missing tables: "
+                + ", ".join(missing_tables)
+            )
+
+    history_table_exists = "schema_migrations" in existing_tables
+
+    
+    history_table_exists = "schema_migrations" in existing_tables
+
+    if history_table_exists:
+        columns_sql = """
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'schema_migrations'
+            ORDER BY ORDINAL_POSITION
+        """
+        result = run_mysql(database, columns_sql)
+
+        if result.returncode != 0:
+            parser.error(
+                "Cannot inspect migration history columns:\n"
+                + result.stderr.strip()
+            )
+
+        history_columns = {
+            column.strip()
+            for column in result.stdout.splitlines()
+            if column.strip()
+        }
+        required_history_columns = {"version", "applied_at"}
+        missing_history_columns = required_history_columns - history_columns
+
+        if missing_history_columns:
+            parser.error(
+                "Migration history table is missing required columns: "
+                + ", ".join(sorted(missing_history_columns))
+            )
+
+        result = run_mysql(
+            database,
+            "SELECT version FROM schema_migrations ORDER BY version",
+        )
+
+        if result.returncode != 0:
+            parser.error(
+                "Cannot inspect existing migration history:\n"
+                + result.stderr.strip()
+            )
+
+        recorded_versions = {
+            version.strip()
+            for version in result.stdout.splitlines()
+            if version.strip()
+        }
+
+        unknown_versions = recorded_versions - migration_versions
+        if unknown_versions:
+            parser.error(
+                "Unknown migration versions recorded: "
+                + ", ".join(sorted(unknown_versions))
+            )
+
+        for version in recorded_versions:
+            expected_tables = migration_table_groups[version]
+            if not expected_tables.issubset(existing_tables):
+                missing_tables = sorted(expected_tables - existing_tables)
+                parser.error(
+                    f"Migration {version} is recorded, but tables are missing: "
+                    + ", ".join(missing_tables)
+                )
+
+        for version, expected_tables in migration_table_groups.items():
+            if (
+                expected_tables.issubset(existing_tables)
+                and version not in recorded_versions
+            ):
+                parser.error(
+                    f"Migration tables exist without a history record for {version}. "
+                    "Inspect the database manually before retrying."
+                )
+    else:
+        migration_tables = set().union(*migration_table_groups.values())
+        present_migration_tables = existing_tables & migration_tables
+
+        if present_migration_tables:
+            parser.error(
+                "Migration-created tables exist but schema_migrations is missing. "
+                "Inspect the database manually before retrying."
+            )
+
+
+    # Create the migration history table only after consistency checks pass.
     history_sql = """
         CREATE TABLE IF NOT EXISTS schema_migrations (
             version VARCHAR(255) PRIMARY KEY,
@@ -108,12 +270,6 @@ def main():
     result = run_mysql(database, history_sql)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip())
-
-    migrations = sorted(MIGRATIONS_DIR.glob("*.sql"))
-    if not migrations:
-        raise RuntimeError(
-            f"No migration files found in {MIGRATIONS_DIR}"
-        )
 
     for migration in migrations:
         version = migration.name
