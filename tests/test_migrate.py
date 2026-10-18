@@ -16,7 +16,7 @@ class TestMigrationRunner(unittest.TestCase):
                     migrate.main()
             else:
                 migrate.main()
-    
+
     def successful_schema_inspection(self):
         return MagicMock(
             returncode=0,
@@ -317,7 +317,6 @@ class TestMigrationRunner(unittest.TestCase):
         self.assertEqual(run_mysql.call_count, 3)
 
 
-    
     @patch("database.migrate.run_mysql")
     def test_rejects_migration_tables_without_history(self, run_mysql):
         run_mysql.side_effect = [

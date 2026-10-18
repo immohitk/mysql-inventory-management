@@ -95,7 +95,7 @@ def main():
             f"expected {database!r}."
         )
 
-    
+
     # Inspect existing tables before making any database changes.
     inspection_sql = """
         SELECT TABLE_NAME
