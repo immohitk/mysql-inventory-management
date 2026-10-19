@@ -4,14 +4,19 @@ A desktop inventory management application built with Python, Tkinter, and MySQL
 
 ## Project Status
 
-**Current version:** `v0.4.2` — Data Migration
-**Status:** Migration tooling implemented, validated, and committed locally; release publication is pending.
+**Existing release:** `v0.4.2` — Data Migration  
+**Proposed extended edition:** `v0.4.2 Extended (Ex)`  
+**Publication status:** Extended-edition release preparation; GitHub publication is pending.
+
+The original `v0.4.2` Git tag is preserved. The proposed Extended edition documents additional development work performed after that tag, including supplier-offer service and repository work, lifecycle tests, and migration-history validation improvements.
 
 The project includes the original database schema, database connection layer, CRUD services, and desktop GUI for categories, products, and suppliers. Purchasing and stock-in functionality was introduced in `v0.4.0`.
 
 Version `v0.4.1` introduced the procurement database redesign, separating product inventory units from supplier-specific purchase offers and package specifications.
 
-Version `v0.4.2` adds a guarded development-database reset utility, environment-configurable migration and demo-seeding tools, migration-history tracking, repeat-run skipping, explicit target-database verification, and documented recovery procedures for migration failures.
+Version `v0.4.2` added a guarded development-database reset utility, environment-configurable migration and demo-seeding tools, migration-history tracking, repeat-run skipping, explicit target-database verification, and documented recovery procedures for migration failures.
+
+The Extended edition adds supplier-offer service and repository work, supplier-offer lifecycle test coverage, and migration-history schema validation improvements. Package/unit logic and purchase-workflow integration remain separate tasks until implemented and verified.
 
 **Important:** The existing `inventory_db` remains protected. Do not execute `database/schema_v2.sql` against it. The fresh development workflow uses `database/schema_base.sql` followed by the migration runner, with optional demo seeding against an explicitly named development/test database.
 
@@ -59,10 +64,13 @@ The project development includes:
 - Unique and check constraints
 - Database indexes
 - Purchasing and stock-in functionality from the `v0.4.0` milestone
-- Proposed procurement schema redesign in `v0.4.1`
-- Procurement schema design documentation
+- Procurement schema design documentation from `v0.4.1`
+- Development-database migration tooling and migration-history tracking from `v0.4.2`
+- Supplier-offer service and repository work in the post-tag development history
+- Supplier-offer lifecycle test coverage
+- Migration-history schema validation improvements
 
-The procurement schema redesign was introduced in `v0.4.1`, and the migration tooling was completed and validated in `v0.4.2`. The supplier-offer service is planned for `v0.4.3`, package and unit logic for `v0.4.4`, and related purchase workflow integration for `v0.4.5`.
+The supplier-offer foundation does not, by itself, mean that package/unit logic or purchase-workflow integration is complete. Those remain separate development tasks until implementation and tests are verified.
 
 ## Database
 
@@ -98,7 +106,7 @@ Foreign keys maintain relationships between the existing database entities.
 
 ### Proposed procurement schema
 
-Version `v0.4.1` introduces a separate target schema draft in `database/schema_v2.sql`.
+Version `v0.4.1` introduced a separate target schema draft in `database/schema_v2.sql`.
 
 The proposed design introduces:
 
@@ -113,7 +121,7 @@ The target product design also proposes an inventory unit and fractional stock q
 
 The proposed model is intended to support multiple suppliers per product and different package configurations for the same product.
 
-**Migration boundary:** The existing database must remain unchanged during `v0.4.1`. Migration planning and validation belong to `v0.4.2`. Historical purchase costs and subtotals must be preserved.
+**Migration boundary:** The existing database must remain unchanged. Migration planning and validation belong to the `v0.4.2` milestone. Historical purchase costs and subtotals must be preserved.
 
 ## Technology Stack
 
@@ -157,7 +165,6 @@ mysql-inventory-management/
 │   ├── database-architecture.md
 │   └── procurement-schema-design.md
 ├── .env.example
-├── .gitignore
 ├── main.py
 ├── requirements.txt
 └── README.md
@@ -177,7 +184,7 @@ The existing database documentation describes the current schema. The procuremen
 
 ## Database Setup
 
-### Fresh development database (v0.4.2)
+### Fresh development database
 
 Use a newly created, disposable development database. Do not use `inventory_db` for migration testing. The migration runner accepts database names beginning with `inventory_migration_`.
 
@@ -198,7 +205,7 @@ Use a newly created, disposable development database. Do not use `inventory_db` 
 
 The original `database/schema.sql` creates and selects `inventory_db`; do not use it for this workflow. `database/schema_fresh.sql` is not the migration runner's input and must not be combined with migrations because it already defines overlapping procurement tables. `database/schema_v2.sql` remains design reference material, not an executable migration.
 
-Demo data is optional and is not part of fresh schema initialization. After importing the base schema and applying migrations, you can insert the deterministic demo records into the selected disposable database:
+Demo data is optional and is not part of fresh schema initialization. After importing the base schema and applying migrations, you can insert deterministic demo records into the selected disposable database:
 
 ```bash
 python -m database.seed_demo --database inventory_migration_dev
@@ -269,33 +276,34 @@ Manual QA checks cover areas such as:
 
 The proposed procurement schema has also been tested for table creation in a separate temporary database. Successful table creation does not establish that all package, unit-conversion, migration, or application-level business rules have been implemented.
 
-Those rules require further validation and automated tests as their corresponding services and migration are developed.
+Those rules require further validation and automated tests as their corresponding services and migrations are developed.
 
 ## Development Roadmap
 
-The project follows this versioned roadmap:
+The project follows this versioned roadmap. The Extended edition records additional post-tag development work; the original `v0.4.2` tag is preserved.
 
-| Version  | Focus                                                    |
-| -------- | -------------------------------------------------------- |
-| `v0.1.0` | Project foundation, schema, demo data, and documentation |
-| `v0.2.1` | Database connection layer                                |
-| `v0.2.2` | Category CRUD service                                    |
-| `v0.2.3` | Product CRUD service                                     |
-| `v0.2.4` | Supplier CRUD service                                    |
-| `v0.2.5` | Basic CRUD GUI                                           |
-| `v0.2.6` | CRUD QA and documentation                                |
-| `v0.3.0` | Core CRUD milestone release                              |
-| `v0.4.0` | Purchasing and stock-in                                  |
-| `v0.4.1` | Schema redesign                                          |
-| `v0.4.2` | Data migration                                           |
-| `v0.4.3` | Supplier Offer service                                   |
-| `v0.4.4` | Package and unit logic                                   |
-| `v0.4.5` | Purchase refactor                                        |
-| `v0.4.6` | Purchase GUI                                             |
-| `v0.4.7` | Stock-in refactor                                        |
-| `v0.5.0` | QA and documentation                                     |
+| Version / milestone    | Focus                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `v0.1.0`               | Project foundation, schema, demo data, and documentation                                  |
+| `v0.2.1`               | Database connection layer                                                                 |
+| `v0.2.2`               | Category CRUD service                                                                     |
+| `v0.2.3`               | Product CRUD service                                                                      |
+| `v0.2.4`               | Supplier CRUD service                                                                     |
+| `v0.2.5`               | Basic CRUD GUI                                                                            |
+| `v0.2.6`               | CRUD QA and documentation                                                                 |
+| `v0.3.0`               | Core CRUD milestone release                                                               |
+| `v0.4.0`               | Purchasing and stock-in                                                                   |
+| `v0.4.1`               | Schema redesign                                                                           |
+| `v0.4.2`               | Data migration                                                                            |
+| `v0.4.2 Extended (Ex)` | Additional supplier-offer foundation and migration validation work after the original tag |
+| `v0.4.3`               | Supplier-offer follow-up and integration work, subject to review of the Extended edition  |
+| `v0.4.4`               | Package and unit logic                                                                    |
+| `v0.4.5`               | Purchase refactor                                                                         |
+| `v0.4.6`               | Purchase GUI                                                                              |
+| `v0.4.7`               | Stock-in refactor                                                                         |
+| `v0.5.0`               | QA and documentation                                                                      |
 
-The roadmap order and version numbers are maintained as defined for this project.
+Roadmap entries describe intended milestones and should not be read as proof that every listed feature is complete. Update milestone status when implementation and verification evidence support the change.
 
 ## Scope Boundaries
 
