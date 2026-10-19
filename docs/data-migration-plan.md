@@ -163,57 +163,55 @@ No legacy demo-data preservation or product-mapping sign-off is required to comp
 
 ## 12. Current Review Status and Evidence
 
-**Status: Closure recommended — acceptance evidence reviewed; historical recovery evidence accepted.**
+**Status: Closure recommended, subject to final diff review and explicit release authorization.**
 
-The focused automated tests, working-tree checks, and live MySQL acceptance validation have been completed for this review. Live MySQL tests were run against the isolated disposable database `inventory_migration_acceptance_20261019`, not the application's `inventory_db`.
+This review's automated test results are recorded separately from historical live-MySQL validation. The full offline suite did not execute the opt-in live-MySQL integration tests; those tests were run separately against the explicitly authorized disposable acceptance database.
 
 ### 12.1 Current Verification Results
 
-- **Focused test suite:** 50 passed, 2 skipped, and 3 subtests passed.
-- **Live MySQL supplier-offer lifecycle tests:** 2 passed in 0.89 seconds.
-- **Fresh-schema migration:** All four migrations applied successfully to the isolated acceptance database.
-- **Migration rerun:** All four previously applied migrations were skipped as expected.
-- **Schema verification:** The acceptance database recorded four applied migrations and contained the expected 16 tables.
-- **Python compilation:** Passed for the migration runner, migration unit tests, and integration test modules.
-- **Diff formatting check:** `git diff --check` completed without reporting issues.
-- **Working tree:** Changes remain uncommitted. Untracked files have been preserved.
-
-Final closure remains pending until the remaining acceptance criteria and documentation are reconciled.
+- **Earlier full offline regression suite:** 130 passed, 3 skipped, and 27 subtests passed; opt-in live-MySQL tests were not enabled.
+- **Latest full regression suite:** All 133 collected items passed with opt-in live-MySQL integration enabled, including the three supplier-offer lifecycle tests.
+- **Live MySQL integration tests:** 3 passed against the explicitly authorized disposable acceptance database `inventory_migration_acceptance_20261019`.
+- **Diff formatting:** `git diff --check` reported no whitespace errors. Git emitted LF/CRLF line-ending warnings for both modified files.
+- **Working tree:** `tests/integration/test_supplier_offer_lifecycle.py` contains an uncommitted 70-line addition covering review persistence, text handling, duplicate rejection, and nonexistent-offer rejection. The three live supplier-offer lifecycle tests, including review persistence, passed against the disposable acceptance database.
+- **Git state:** `main` is one commit ahead of `origin/main`; the integration-test file remains modified.
 
 ### 12.2 Historical Database Validation
 
-Earlier documentation records successful fresh-schema migration, migration-history and rerun checks, and a recovery drill using isolated test databases.
+Earlier validation records describe successful fresh-schema migration, migration rerun behavior, schema verification, and an isolated-database migration-failure recovery drill.
 
-Those results remain **historical evidence**. They were not independently reproduced during this review and must not be presented as newly verified results.
+These are historical results and were not independently reproduced during the current review. They must not be represented as new live-MySQL verification for this review.
 
-### 12.3 Working-Tree State
+### 12.3 Working-Tree Safety
 
-The working tree contains these changes:
+Preserve all existing user changes. The current review must not discard or overwrite `tests/integration/test_supplier_offer_lifecycle.py` or other existing work. Do not stage or commit unrelated or untracked files without explicit authorization.
 
-- Modified: `database/migrate.py`
-- Modified: `docs/data-migration-plan.md`
-- Modified: `tests/test_migrate.py`
-- Untracked: `database/schema_fresh.sql`
-- Untracked: `tests/integration/`
-
-The untracked schema and integration-test files must be preserved. They must not be staged or committed as part of this review without explicit authorization.
-
-No commit, push, tag, release operation, or database operation was performed during this review.
+No commit, push, tag, or release operation was performed as part of this review. The live MySQL integration tests used test fixtures in the explicitly authorized disposable database `inventory_migration_acceptance_20261019`. The protected application database `inventory_db` was not touched.
 
 ### 12.4 Verification Limitations
 
-TThe current review verified the selected automated tests, Python compilation, working-tree formatting, fresh-schema migration, migration rerun behavior, and live supplier-offer lifecycle against an isolated disposable MySQL database.
+The current review verified the focused migration/reset/seed tests, the full offline regression suite, Git diff formatting, and the three opt-in live MySQL supplier-offer integration tests against `inventory_migration_acceptance_20261019`. The full suite skipped those integration tests because opt-in was disabled for that run. Fresh-install migration, migration rerun, and demo-seed repeatability were verified during this review against the explicitly authorized disposable database `inventory_migration_fresh_install_20261019`. The four migrations applied successfully and were skipped on rerun; two consecutive seed runs each reported 4 categories, 3 suppliers, and 8 products. The complete reset-to-seed sequence was not repeated as one uninterrupted drill. The historical migration-failure recovery drill was not repeated and remains historical evidence.
 
-The historical isolated-database migration-failure recovery drill documented in Section 9 is accepted as sufficient evidence for v0.4.2 closure. It was not independently repeated during the current review. Therefore, the current review does not claim new live verification of MySQL migration-failure recovery or partial-DDL behavior.
+The isolated-database migration-failure recovery drill documented in Section 9 remains historical evidence. It was not repeated during this review. MySQL may retain partial DDL after a migration failure; inspect the disposable target and follow the documented recovery procedure rather than blindly rerunning a failed migration.
 
-Based on the accepted historical recovery evidence and the current verification results, no additional destructive live-database validation is required for this milestone's closure. All database operations must continue to use explicitly authorized disposable targets; the protected application database `inventory_db` must not be used for migration acceptance or recovery testing.
+### 12.5 Closure Checklist
+
+- Automated migration/reset/seed safety tests pass.
+- The full offline regression suite passes, with opt-in live-MySQL tests reported separately.
+- All four migrations applied successfully to the explicitly authorized disposable fresh-install database.
+- Migration rerun verification passed: all four migrations were skipped as already recorded.
+- Demo-seed repeatability passed: consecutive runs reported 4 categories, 3 suppliers, and 8 products.
+- Live supplier-offer lifecycle integration tests passed: 3 tests against the explicitly authorized disposable acceptance database.
+- Historical migration-failure recovery evidence remains explicitly identified as historical; the recovery drill was not repeated during this review.
+- Existing changes and the protected application database `inventory_db` remain protected.
+- Commit, push, tag, and release actions require explicit authorization.
 
 ## 13. Remaining Work
 
-1. **Acceptance evidence:** Accept the historical isolated-database migration-failure recovery evidence documented in Section 9, together with the current review's automated and live validation results, for v0.4.2 closure.
-2. **Verification limitations:** Retain the explicit record that the historical failure-recovery drill was not repeated during the current review.
-3. **Preserve the worktree:** Keep `database/schema_fresh.sql` and `tests/integration/` unchanged and untracked unless separately authorized.
-4. **Milestone status:** Closure is recommended based on the accepted historical recovery evidence and current verification results. Historical failure-recovery testing was not repeated during this review.
-5. **Release actions:** Commit, push, create tags, or publish a release only with separate explicit authorization.
+1. Reconcile this document with the final working-tree diff and verification evidence.
+2. Preserve the historical-only status of the migration-failure recovery drill.
+3. Preserve existing user changes and untracked files.
+4. Treat v0.4.2 closure as ready for final approval after the final diff and status checks.
+5. Do not commit, push, tag, or publish a release without explicit authorization for those operations.
 
-The legacy demo records are not required to be reconciled or preserved for this milestone. The priority remains the migration foundation, schema compatibility, migration-history consistency, safe failure handling, and a documented recovery procedure. Any destructive database operation requires explicit authorization for the specific target database.
+The legacy demo records do not need to be reconciled or preserved for this milestone. Any destructive database operation requires explicit authorization for the specific disposable target. Never use `inventory_db` for migration acceptance or recovery testing.

@@ -337,3 +337,73 @@ def test_missing_supplier_offer_behavior(offer_environment):
             minimum_order_quantity=Decimal("1.0000"),
             purchase_price=Decimal("1.00"),
         )
+
+
+def test_supplier_offer_review_persistence(offer_environment):
+    """Verify review persistence, duplicate protection, and SQL text handling."""
+    import os
+
+    from database.supplier_offer_approval import (
+        SupplierOfferEvidence,
+        SupplierOfferReview,
+    )
+    from database.supplier_offer_review_service import save_review
+
+    service = offer_environment["service"]
+    db = offer_environment["db"]
+    created = offer_environment["created"]
+    database = os.environ["INVENTORY_TEST_DATABASE"]
+
+    offer_id = service.create_offer(
+        supplier_id=created["supplier_id"],
+        product_id=created["product_id"],
+        package_specification_id=created["package_specification_id"],
+        minimum_order_quantity=Decimal("1.0000"),
+        purchase_price=Decimal("10.00"),
+    )
+    created["offer_ids"].append(offer_id)
+
+    review = SupplierOfferReview(
+        evidence=SupplierOfferEvidence(
+            package_evidence="Package: supplier's sample \\ carton",
+            price_evidence="Price: 10 - vendor's quote",
+            moq_evidence="MOQ: 1 unit",
+        ),
+        decision="APPROVED",
+        reviewer="O'Brien",
+        review_notes="Verified: vendor's file \\ checked - verified",
+    )
+
+    save_review(database, offer_id, review)
+
+    def read_review():
+        cursor = db.execute(
+            """
+            SELECT package_evidence, price_evidence, moq_evidence,
+                   review_status, reviewer, review_notes
+            FROM supplier_offer_reviews
+            WHERE supplier_offer_id = %s
+            """,
+            (offer_id,),
+        )
+        try:
+            return cursor.fetchone()
+        finally:
+            cursor.close()
+
+    original = read_review()
+    assert original is not None
+    assert original[0] == review.evidence.package_evidence
+    assert original[1] == review.evidence.price_evidence
+    assert original[2] == review.evidence.moq_evidence
+    assert original[3] == "APPROVED"
+    assert original[4] == review.reviewer
+    assert original[5] == review.review_notes
+
+    with pytest.raises(ValueError, match="already exists"):
+        save_review(database, offer_id, review)
+
+    assert read_review() == original
+
+    with pytest.raises(ValueError, match="does not exist"):
+        save_review(database, 2_000_000_000, review)
