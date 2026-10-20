@@ -26,6 +26,34 @@ class TestSupplierOfferService(unittest.TestCase):
         self.assertEqual(params[4], Decimal("19.99"))
         self.db.commit.assert_called_once()
 
+    def test_create_offer_accepts_numeric_boundaries(self):
+        cases = (
+            (
+                Decimal("0.0001"),
+                Decimal("0.00"),
+            ),
+            (
+                Decimal("99999999.9999"),
+                Decimal("9999999999.99"),
+            ),
+        )
+
+        for moq, price in cases:
+            with self.subTest(moq=moq, price=price):
+                self.db.reset_mock()
+                self.db.execute.return_value.lastrowid = 7
+
+                result = self.service.create_offer(
+                    1, 2, 3, moq, price
+                )
+
+                self.assertEqual(result, 7)
+                params = self.db.execute.call_args.args[1]
+                self.assertEqual(params[3], moq)
+                self.assertEqual(params[4], price)
+                self.db.commit.assert_called_once()
+                self.db.rollback.assert_not_called()
+
     def test_create_offer_rejects_invalid_ids(self):
         for value in (0, -1, True, "1"):
             with self.subTest(value=value):
@@ -309,6 +337,28 @@ class TestSupplierOfferService(unittest.TestCase):
         self.assertEqual(self.db.execute.call_count, 2)
         self.db.commit.assert_called_once()
         self.db.rollback.assert_not_called()
+
+    def test_update_offer_accepts_numeric_boundaries(self):
+        cases = (
+            (Decimal("0.0001"), Decimal("0.00")),
+            (Decimal("99999999.9999"), Decimal("9999999999.99")),
+        )
+
+        for moq, price in cases:
+            with self.subTest(moq=moq, price=price):
+                self.db.reset_mock()
+                self.db.execute.return_value.rowcount = 1
+
+                result = self.service.update_offer(
+                    7, 1, 2, 3, moq, price
+                )
+
+                self.assertEqual(result, 1)
+                params = self.db.execute.call_args.args[1]
+                self.assertIn(moq, params)
+                self.assertIn(price, params)
+                self.db.commit.assert_called_once()
+                self.db.rollback.assert_not_called()
 
     def test_get_offers_by_supplier_delegates_to_repository(self):
         expected = [(7,)]
