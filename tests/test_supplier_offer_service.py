@@ -242,6 +242,17 @@ class TestSupplierOfferService(unittest.TestCase):
         self.db.rollback.assert_called_once()
         self.db.commit.assert_not_called()
 
+    def test_update_missing_foreign_key_error_rolls_back(self):
+        self.db.execute.side_effect = Error(
+            errno=1452, msg="foreign key failure"
+        )
+
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            self.service.update_offer(7, 99, 2, 3, 1, 10)
+
+        self.db.rollback.assert_called_once()
+        self.db.commit.assert_not_called()
+
     def test_close_only_closes_owned_connection(self):
         self.service.close()
         self.db.close.assert_not_called()
