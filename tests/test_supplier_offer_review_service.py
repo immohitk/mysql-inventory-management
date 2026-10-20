@@ -60,7 +60,7 @@ class TestSupplierOfferReviewService(unittest.TestCase):
     @patch("database.supplier_offer_review_service.run_mysql")
     def test_does_not_overwrite_existing_review(self, run_mysql):
         run_mysql.return_value.returncode = 0
-        run_mysql.return_value.stdout = "1"
+        run_mysql.return_value.stdout = "1\n"
         run_mysql.return_value.stderr = ""
 
         with self.assertRaisesRegex(ValueError, "already exists"):
@@ -69,6 +69,40 @@ class TestSupplierOfferReviewService(unittest.TestCase):
                 1,
                 self.make_review(),
             )
+
+        run_mysql.assert_called_once()
+
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_verifies_review_using_selected_database(self, run_mysql):
+        run_mysql.side_effect = [
+            type("Result", (), {
+                "returncode": 0,
+                "stdout": "0\n",
+                "stderr": "",
+            })(),
+            type("Result", (), {
+                "returncode": 0,
+                "stdout": "",
+                "stderr": "",
+            })(),
+            type("Result", (), {
+                "returncode": 0,
+                "stdout": "1\n",
+                "stderr": "",
+            })(),
+        ]
+
+        save_review(
+            "inventory_migration_snapshot_v043",
+            1,
+            self.make_review(),
+        )
+
+        self.assertEqual(run_mysql.call_count, 3)
+        self.assertEqual(
+            run_mysql.call_args_list[2].args[0],
+            "inventory_migration_snapshot_v043",
+        )
 
 
 if __name__ == "__main__":

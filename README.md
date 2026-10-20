@@ -208,16 +208,16 @@ The original `database/schema.sql` creates and selects `inventory_db`; do not us
 Demo data is optional and is not part of fresh schema initialization. After importing the base schema and applying migrations, you can insert deterministic demo records into the selected disposable database:
 
 ```bash
-python -m database.seed_demo --database inventory_migration_dev
+python -m database.seed_demo --database inventory_migration_dev --confirm-disposable --confirm-database inventory_migration_dev
 ```
 
-To reset a disposable development database, use the explicit reset command below. **This drops the entire named database and recreates it empty, permanently deleting all data in that database.** Verify the target is disposable before running it; the name-prefix and confirmation checks do not prove that the data is disposable.
+The development database creation utility creates a **new, nonexistent** database in the `inventory_migration_<test_name>` namespace. It refuses to overwrite an existing database and never drops or resets databases.
 
-```bash
-python -m database.reset_dev --database inventory_migration_dev --confirm-database inventory_migration_dev --confirm-reset
-```
+Before using it, verify that the target is intended for disposable development work and that `MYSQL_LOGIN_PATH` identifies a dedicated, least-privileged MySQL account. Database naming and confirmation flags do not prove that a database is disposable.
 
-After a reset, import `database/schema_base.sql` again and rerun the migration command shown above before optionally seeding demo data. Never target `inventory_db`. The legacy `database/seed.sql` hard-codes `USE inventory_db`; do not use it for this workflow. Do not use `database/schema_fresh.sql` as migration input or combine it with the migrations, because it defines overlapping procurement tables.
+The utility requires `--confirm-create` and `--confirm-database` to match `--database`. The former `--confirm-reset` command is no longer supported.
+
+After creating a new database, follow the fresh-development-database instructions above to initialize the schema and apply migrations. Never target `inventory_db`, and do not run the creation utility until the MySQL account and its actual privileges have been verified.
 
 ## Configuration
 
