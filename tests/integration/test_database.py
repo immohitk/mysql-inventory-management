@@ -97,6 +97,7 @@ def _validate_required_schema(cursor):
             )
 
 
+
 def connect_test_database():
     """Connect only to an explicitly approved integration-test database."""
     if os.environ.get("RUN_MYSQL_INTEGRATION_TESTS") != "1":
@@ -119,6 +120,16 @@ def connect_test_database():
             "INVENTORY_TEST_DATABASE."
         )
 
+    disposable_approval = os.environ.get(
+        "INVENTORY_TEST_DATABASE_DISPOSABLE", ""
+    ).strip()
+
+    if disposable_approval != database:
+        raise RuntimeError(
+            "INVENTORY_TEST_DATABASE_DISPOSABLE must exactly match "
+            "the explicitly approved disposable test database."
+        )
+
     try:
         port = int(os.environ.get("INVENTORY_TEST_DB_PORT", "3306"))
     except ValueError as error:
@@ -132,15 +143,29 @@ def connect_test_database():
         )
 
     config = {
-        "host": os.environ.get("INVENTORY_TEST_DB_HOST", "localhost"),
+        "host": os.environ.get("INVENTORY_TEST_DB_HOST", "localhost").strip(),
         "port": port,
-        "user": os.environ.get("INVENTORY_TEST_DB_USER", ""),
+        "user": os.environ.get("INVENTORY_TEST_DB_USER", "").strip(),
         "password": os.environ.get("INVENTORY_TEST_DB_PASSWORD", ""),
         "database": database,
     }
 
     if not config["user"]:
-        raise RuntimeError("INVENTORY_TEST_DB_USER must be configured.")
+        raise RuntimeError(
+            "INVENTORY_TEST_DB_USER must be configured."
+        )
+
+    if config["user"].casefold() in {
+        "root",
+        "admin",
+        "administrator",
+        "mysql.session",
+        "mysql.sys",
+    }:
+        raise RuntimeError(
+            "INVENTORY_TEST_DB_USER must be a dedicated "
+            "non-administrative test account."
+        )
 
     connection = mysql.connector.connect(**config)
 
@@ -153,7 +178,8 @@ def connect_test_database():
 
             if actual_database != database:
                 raise RuntimeError(
-                    f"Connected to {actual_database!r}; expected {database!r}."
+                    f"Connected to {actual_database!r}; "
+                    f"expected {database!r}."
                 )
 
             cursor.execute("SELECT version FROM schema_migrations")
@@ -165,6 +191,7 @@ def connect_test_database():
                     "Required migrations are missing: "
                     + ", ".join(sorted(missing))
                 )
+
             _validate_required_schema(cursor)
         finally:
             cursor.close()

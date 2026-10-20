@@ -84,6 +84,7 @@ class TestIntegrationDatabaseSafety(unittest.TestCase):
                 "RUN_MYSQL_INTEGRATION_TESTS": "1",
                 "INVENTORY_TEST_DATABASE": "inventory_migration_test",
                 "INVENTORY_TEST_DATABASE_CONFIRM": "inventory_migration_test",
+                "INVENTORY_TEST_DATABASE_DISPOSABLE": "inventory_migration_test",
             },
             clear=True,
         ):
@@ -126,6 +127,7 @@ class TestIntegrationDatabaseSafety(unittest.TestCase):
                 "RUN_MYSQL_INTEGRATION_TESTS": "1",
                 "INVENTORY_TEST_DATABASE": "inventory_migration_test",
                 "INVENTORY_TEST_DATABASE_CONFIRM": "inventory_migration_test",
+                "INVENTORY_TEST_DATABASE_DISPOSABLE": "inventory_migration_test",
                 "INVENTORY_TEST_DB_USER": "test_user",
                 "INVENTORY_TEST_DB_PORT": "not-a-port",
             },
@@ -146,6 +148,7 @@ class TestIntegrationDatabaseSafety(unittest.TestCase):
                         "RUN_MYSQL_INTEGRATION_TESTS": "1",
                         "INVENTORY_TEST_DATABASE": "inventory_migration_test",
                         "INVENTORY_TEST_DATABASE_CONFIRM": "inventory_migration_test",
+                        "INVENTORY_TEST_DATABASE_DISPOSABLE": "inventory_migration_test",
                         "INVENTORY_TEST_DB_USER": "test_user",
                         "INVENTORY_TEST_DB_PORT": port,
                     },
@@ -157,6 +160,87 @@ class TestIntegrationDatabaseSafety(unittest.TestCase):
                         connect_test_database()
 
                 mock_connect.assert_not_called()
+
+    def test_rejects_missing_disposable_database_approval(self):
+        with patch.dict(
+            os.environ,
+            {
+                "RUN_MYSQL_INTEGRATION_TESTS": "1",
+                "INVENTORY_TEST_DATABASE": "inventory_migration_test",
+                "INVENTORY_TEST_DATABASE_CONFIRM": "inventory_migration_test",
+                "INVENTORY_TEST_DB_USER": "inventory_test_user",
+            },
+            clear=True,
+        ):
+            with patch(
+                "tests.integration.test_database.mysql.connector.connect"
+            ) as mock_connect:
+                with self.assertRaisesRegex(
+                    RuntimeError, "INVENTORY_TEST_DATABASE_DISPOSABLE"
+                ):
+                    connect_test_database()
+
+                mock_connect.assert_not_called()
+
+    def test_rejects_mismatched_disposable_database_approval(self):
+        with patch.dict(
+            os.environ,
+            {
+                "RUN_MYSQL_INTEGRATION_TESTS": "1",
+                "INVENTORY_TEST_DATABASE": "inventory_migration_test",
+                "INVENTORY_TEST_DATABASE_CONFIRM": "inventory_migration_test",
+                "INVENTORY_TEST_DATABASE_DISPOSABLE": "inventory_migration_other",
+                "INVENTORY_TEST_DB_USER": "inventory_test_user",
+            },
+            clear=True,
+        ):
+            with patch(
+                "tests.integration.test_database.mysql.connector.connect"
+            ) as mock_connect:
+                with self.assertRaisesRegex(
+                    RuntimeError, "INVENTORY_TEST_DATABASE_DISPOSABLE"
+                ):
+                    connect_test_database()
+
+                mock_connect.assert_not_called()
+
+    def test_rejects_administrative_test_user_without_connecting(self):
+        for username in (
+            "root",
+            "ROOT",
+            "admin",
+            "administrator",
+            "mysql.session",
+            "mysql.sys",
+        ):
+            with self.subTest(username=username):
+                with patch.dict(
+                    os.environ,
+                    {
+                        "RUN_MYSQL_INTEGRATION_TESTS": "1",
+                        "INVENTORY_TEST_DATABASE": (
+                            "inventory_migration_test"
+                        ),
+                        "INVENTORY_TEST_DATABASE_CONFIRM": (
+                            "inventory_migration_test"
+                        ),
+                        "INVENTORY_TEST_DATABASE_DISPOSABLE": (
+                            "inventory_migration_test"
+                        ),
+                        "INVENTORY_TEST_DB_USER": username,
+                    },
+                    clear=True,
+                ):
+                    with patch(
+                        "tests.integration.test_database.mysql.connector.connect"
+                    ) as mock_connect:
+                        with self.assertRaisesRegex(
+                            RuntimeError,
+                            "non-administrative",
+                        ):
+                            connect_test_database()
+
+                        mock_connect.assert_not_called()
 
 
 if __name__ == "__main__":

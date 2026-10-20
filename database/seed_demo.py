@@ -7,7 +7,14 @@ import sys
 from pathlib import Path
 
 MYSQL = Path(os.environ.get("MYSQL_CLIENT", r"C:\Program Files\MySQL\MySQL Server 9.7\bin\mysql.exe"))
-LOGIN_PATH = os.environ.get("MYSQL_LOGIN_PATH", "inventory-migrations")
+LOGIN_PATH = os.environ.get("MYSQL_LOGIN_PATH", "").strip()
+
+ADMIN_LOGIN_PATHS = {
+    "inventory-migrations",
+    "root",
+    "admin",
+    "administrator",
+}
 DEMO_PREFIX = "inventory_migration_"
 
 CATEGORIES = [
@@ -90,15 +97,39 @@ def main():
         required=True,
         help="Target isolated migration database, e.g. inventory_migration_dev",
     )
+    parser.add_argument("--confirm-disposable", action="store_true")
+    parser.add_argument("--confirm-database")
     args = parser.parse_args()
 
-    database = args.database
+    database = args.database.strip()
     if (
         not database.startswith(DEMO_PREFIX)
         or len(database) <= len(DEMO_PREFIX)
-        or not all(char.isascii() and (char.isalnum() or char == "_") for char in database)
+        or not all(
+            char.isascii() and (char.isalnum() or char == "_")
+            for char in database
+        )
     ):
-        parser.error(f"database must be a valid name starting with {DEMO_PREFIX!r}")
+        parser.error(
+            f"database must be a valid name starting with {DEMO_PREFIX!r}"
+        )
+
+    if args.confirm_database != database:
+        parser.error("Confirmation database must exactly match --database.")
+
+    if not args.confirm_disposable:
+        parser.error(
+            "Seeding requires --confirm-disposable for a verified disposable database."
+        )
+
+    if not LOGIN_PATH:
+        parser.error(
+            "Set MYSQL_LOGIN_PATH to an explicitly configured, "
+            "least-privileged database account. No default is permitted."
+        )
+
+    if LOGIN_PATH.casefold() in ADMIN_LOGIN_PATHS:
+        parser.error("Refusing a known administrative/default login path.")
 
     if not MYSQL.is_file():
         print(f"MySQL client not found: {MYSQL}", file=sys.stderr)
@@ -158,7 +189,7 @@ def main():
         print(f"Could not launch MySQL: {exc}", file=sys.stderr)
         return 1
 
-    if result.returncode:
+    if result.returncode != 0:
         print(result.stderr.strip() or "MySQL seed failed.", file=sys.stderr)
         print(
             "If the transaction was interrupted, verify the database before retrying.",
