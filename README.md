@@ -1,340 +1,329 @@
 # MySQL Inventory Management
 
-A desktop inventory management application built with Python, Tkinter, and MySQL. This project demonstrates practical relational database design, SQL fundamentals, CRUD operations, purchasing workflows, and inventory management through a real-world application.
+A Python desktop application for inventory operations backed by MySQL.
+The repository contains a Tkinter-based GUI, application services,
+database/repository code, schema and migration utilities, supplier-offer
+review persistence, and automated tests.
 
-## Project Status
+## Current Development Status
 
-**Existing release:** `v0.4.2` — Data Migration  
-**Proposed extended edition:** `v0.4.2 Extended (Ex)`  
-**Publication status:** Extended-edition release preparation; GitHub publication is pending.
+The current development focus is the **supplier-offer lifecycle and
+review workflow (`v0.4.3`)**.
 
-The original `v0.4.2` Git tag is preserved. The proposed Extended edition documents additional development work performed after that tag, including supplier-offer service and repository work, lifecycle tests, and migration-history validation improvements.
+The repository includes supplier-offer repository/service functionality,
+validation for supplier/product/package references, price and
+minimum-order-quantity rules, review persistence, database-safety
+tooling, and integration tests. The milestone should not be described as
+released merely because its implementation or documentation exists;
+acceptance and release preparation must follow the project roadmap.
 
-The project includes the original database schema, database connection layer, CRUD services, and desktop GUI for categories, products, and suppliers. Purchasing and stock-in functionality was introduced in `v0.4.0`.
-
-Version `v0.4.1` introduced the procurement database redesign, separating product inventory units from supplier-specific purchase offers and package specifications.
-
-Version `v0.4.2` added a guarded development-database reset utility, environment-configurable migration and demo-seeding tools, migration-history tracking, repeat-run skipping, explicit target-database verification, and documented recovery procedures for migration failures.
-
-The Extended edition adds supplier-offer service and repository work, supplier-offer lifecycle test coverage, and migration-history schema validation improvements. Package/unit logic and purchase-workflow integration remain separate tasks until implemented and verified.
-
-**Important:** The existing `inventory_db` remains protected. Do not execute `database/schema_v2.sql` against it. The fresh development workflow uses `database/schema_base.sql` followed by the migration runner, with optional demo seeding against an explicitly named development/test database.
-
-## Goals
-
-This project demonstrates practical understanding of:
-
-- Python application development
-- MySQL and SQL
-- Relational database design and normalization
-- Primary keys and foreign keys
-- CRUD operations
-- Database constraints and indexes
-- Transactions and rollback
-- Input validation and error handling
-- Automated and manual testing
-- Tkinter GUI development
-- Inventory and purchasing workflows
-- Explicit measurement-unit conversions
-- Database migration planning
-
-## Current Features
-
-The project development includes:
-
-- Project structure and Python virtual environment
-- Environment-based database configuration
-- MySQL connection lifecycle management
-- Transaction commit and rollback support
-- Category CRUD
-- Product CRUD
-- Supplier CRUD
-- Category, product, and supplier validation
-- Duplicate protection
-- Foreign-key deletion protection
-- Product category and supplier relationship validation
-- Product search and filtering at the service level
-- Tkinter-based desktop GUI
-- Category management GUI
-- Product management GUI
-- Supplier management GUI
-- Add, edit, delete, and refresh operations through the GUI
-- Fictional demonstration data
-- Relational schema with primary keys and foreign keys
-- Unique and check constraints
-- Database indexes
-- Purchasing and stock-in functionality from the `v0.4.0` milestone
-- Procurement schema design documentation from `v0.4.1`
-- Development-database migration tooling and migration-history tracking from `v0.4.2`
-- Supplier-offer service and repository work in the post-tag development history
-- Supplier-offer lifecycle test coverage
-- Migration-history schema validation improvements
-
-The supplier-offer foundation does not, by itself, mean that package/unit logic or purchase-workflow integration is complete. Those remain separate development tasks until implementation and tests are verified.
-
-## Database
-
-### Existing database schema
-
-The existing database contains seven core tables:
-
-- `categories`
-- `suppliers`
-- `products`
-- `purchases`
-- `purchase_items`
-- `sales`
-- `sale_items`
-
-These tables represent the existing application database structure. The original schema remains available in `database/schema.sql`.
-
-### Existing relationships
-
-```text
-categories
-    |
-    └──< products >── suppliers
-
-products
-    |
-    ├──< purchase_items >── purchases
-    |
-    └──< sale_items >────── sales
-```
-
-Foreign keys maintain relationships between the existing database entities.
-
-### Proposed procurement schema
-
-Version `v0.4.1` introduced a separate target schema draft in `database/schema_v2.sql`.
-
-The proposed design introduces:
-
-- `units` — measurement units such as kilogram, litre, and piece
-- `unit_conversions` — explicit directed conversion factors
-- `package_forms` — packaging forms such as carton, sack, box, and bottle
-- `package_specifications` — purchasable package configurations
-- `package_contents` — explicitly defined package contents and quantities
-- `supplier_offers` — supplier-specific product and package prices
-
-The target product design also proposes an inventory unit and fractional stock quantities. It is reference material only and is not an executable replacement for the existing `products` table.
-
-The proposed model is intended to support multiple suppliers per product and different package configurations for the same product.
-
-**Migration boundary:** The existing database must remain unchanged. Migration planning and validation belong to the `v0.4.2` milestone. Historical purchase costs and subtotals must be preserved.
+The procurement schema redesign is being developed incrementally.
+Proposed designs, requirements, and roadmap entries describe plans or
+intended behavior unless confirmed by implementation and tests.
 
 ## Technology Stack
 
-### Application
+- **Language:** Python
+- **Database:** MySQL
+- **Database driver:** `mysql-connector-python`
+- **Configuration:** `python-dotenv`
+- **Desktop interface:** Tkinter
+- **Testing:** `pytest`
+- **Data access:** SQL-backed repository and service modules
 
-- Python
-- Tkinter / ttk
+## Features and Components
 
-### Database
+### Desktop application
 
-- MySQL
-- SQL
-- `mysql-connector-python`
+The current GUI structure includes:
 
-### Testing
+- Category management
+- Product management
+- Supplier management
+- Purchase workflows
+- Main application window
 
-- pytest
+Application entry point: `main.py`
 
-### Configuration
+### Application services
 
-- `python-dotenv`
+The repository includes services for product, supplier, purchase, and
+supplier-offer operations.
 
-## Project Structure
+Supplier offers connect a supplier, product, and package specification
+with a minimum order quantity (MOQ), purchase price, and active state.
+The service layer supports offer creation, retrieval, updates, and
+activation/deactivation, with validation for identifiers, references,
+pricing, MOQ, and duplicate combinations.
+
+### Supplier-offer reviews
+
+The supplier-offer review workflow persists review evidence and decision
+information separately from offer CRUD. The workflow supports reviewer
+details, notes/evidence, a decision status, and a database-generated
+timestamp. Supported review statuses include `PENDING`, `APPROVED`, and
+`REJECTED`.
+
+Review persistence validates its target and review data. Existing review
+records are not silently overwritten as part of ordinary offer updates.
+
+See [`docs/supplier-offer-service.md`](docs/supplier-offer-service.md)
+for the service and persistence contracts.
+
+### Database and validation tooling
+
+The repository includes utilities for:
+
+- Database migrations and fresh isolated migration-database setup
+- Migration and reset safety checks
+- Legacy inventory-unit and supplier-offer mapping validation
+- Package-content validation
+- Supplier-offer validation and review persistence
+
+Database scripts have specific target restrictions. Read their
+documentation and safeguards before running any database-changing
+operation.
+
+## Repository Structure
 
 ```text
-mysql-inventory-management/
+.
 ├── app/
+│   ├── config.py
 │   ├── db/
-│   ├── models/
-│   ├── services/
 │   ├── gui/
-│   └── utils/
+│   ├── repositories/
+│   └── services/
 ├── database/
+│   ├── migrations/
+│   ├── migrate.py
+│   ├── reset_dev.py
+│   ├── seed_demo.py
+│   ├── supplier_offer_approval.py
+│   ├── supplier_offer_review_service.py
+│   ├── validate_mappings.py
+│   ├── validate_package_contents.py
+│   ├── validate_supplier_offers.py
 │   ├── schema.sql
-│   ├── seed.sql
-│   └── schema_v2.sql
-├── tests/
-├── screenshots/
+│   ├── schema_base.sql
+│   ├── schema_fresh.sql
+│   ├── schema_v2.sql
+│   └── seed.sql
 ├── docs/
-│   ├── requirements.md
 │   ├── database-architecture.md
-│   └── procurement-schema-design.md
-├── .env.example
+│   ├── legacy-inventory-unit-mapping.md
+│   ├── legacy-supplier-offer-mapping.md
+│   ├── procurement-schema-design.md
+│   ├── requirements.md
+│   └── supplier-offer-service.md
+├── screenshots/
+├── tests/
+│   └── integration/
 ├── main.py
 ├── requirements.txt
+├── .env.example
 └── README.md
 ```
 
-The directory structure reflects the main project organization. Individual files and modules may evolve as development continues.
+## Prerequisites
 
-## Documentation
+- Python
+- MySQL Server
+- Git
+- A MySQL account with the privileges required for the intended
+  application database
 
-- **Project requirements:** [`docs/requirements.md`](docs/requirements.md)
-- **Existing database architecture:** [`docs/database-architecture.md`](docs/database-architecture.md)
-- **Proposed procurement schema design:** [`docs/procurement-schema-design.md`](docs/procurement-schema-design.md)
-- **Existing database schema:** [`database/schema.sql`](database/schema.sql)
-- **Proposed target schema draft:** [`database/schema_v2.sql`](database/schema_v2.sql)
+## Installation
 
-The existing database documentation describes the current schema. The procurement design document describes the proposed target model and its migration boundaries.
+Run these commands from the project root in PowerShell.
 
-## Database Setup
+### 1. Create and activate a virtual environment
 
-### Fresh development database
-
-Use a newly created, disposable development database. Do not use `inventory_db` for migration testing. The migration runner accepts database names beginning with `inventory_migration_`.
-
-1. Create an empty database in MySQL, for example `inventory_migration_dev`.
-2. Import the core schema into that explicitly selected database. `schema_base.sql` contains table definitions only; it does not create or select a database and does not load demo records.
-
-   ```bash
-   mysql --login-path=inventory-migrations --database=inventory_migration_dev < database/schema_base.sql
-   ```
-
-3. Apply the procurement migrations in filename order. The runner records successful migrations in `schema_migrations` and skips versions already recorded.
-
-   ```bash
-   python -m database.migrate --database inventory_migration_dev
-   ```
-
-4. Configure the application to use this database only after confirming the schema matches the application version. Set `DB_NAME=inventory_migration_dev` in the local `.env` file.
-
-The original `database/schema.sql` creates and selects `inventory_db`; do not use it for this workflow. `database/schema_fresh.sql` is not the migration runner's input and must not be combined with migrations because it already defines overlapping procurement tables. `database/schema_v2.sql` remains design reference material, not an executable migration.
-
-Demo data is optional and is not part of fresh schema initialization. After importing the base schema and applying migrations, you can insert deterministic demo records into the selected disposable database:
-
-```bash
-python -m database.seed_demo --database inventory_migration_dev --confirm-disposable --confirm-database inventory_migration_dev
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-The development database creation utility creates a **new, nonexistent** database in the `inventory_migration_<test_name>` namespace. It refuses to overwrite an existing database and never drops or resets databases.
+### 2. Install dependencies
 
-Before using it, verify that the target is intended for disposable development work and that `MYSQL_LOGIN_PATH` identifies a dedicated, least-privileged MySQL account. Database naming and confirmation flags do not prove that a database is disposable.
+```powershell
+python -m pip install -r requirements.txt
+```
 
-The utility requires `--confirm-create` and `--confirm-database` to match `--database`. The former `--confirm-reset` command is no longer supported.
+### 3. Configure the environment
 
-After creating a new database, follow the fresh-development-database instructions above to initialize the schema and apply migrations. Never target `inventory_db`, and do not run the creation utility until the MySQL account and its actual privileges have been verified.
+Create a local environment file from the example:
 
-## Configuration
+```powershell
+Copy-Item .env.example .env
+```
 
-Copy `.env.example` to `.env`.
-
-Configure the connection values for your local MySQL installation.
-
-Example:
+Edit `.env` locally and set the connection values for your intended
+application database. The example configuration uses these variable
+names:
 
 ```dotenv
 DB_HOST=localhost
 DB_PORT=3306
 DB_NAME=inventory_db
-DB_USER=root
-DB_PASSWORD=your_password
+DB_USER=your_mysql_username
+DB_PASSWORD=your_mysql_password
 ```
 
-Use the database name and credentials appropriate for your local environment.
+Replace the example credentials with your own local values. Never commit
+`.env`, passwords, tokens, or connection secrets, and do not paste them
+into chat or public issue reports.
 
-Do not commit `.env`, passwords, or real credentials to the repository.
+### 4. Prepare the database
 
-## Running the Project
+Before launching the application, verify that the configured database
+exists and has the schema expected by the current code.
 
-Activate the project's virtual environment, install dependencies if necessary, and run:
+The repository contains multiple schema files intended for different
+stages or purposes. Do not assume that they are interchangeable, and do
+not run a schema or migration script against an existing database
+without first understanding its effects.
 
-```bash
+**Database safety requirements:**
+
+- **Never run migrations, schema SQL, test writes, seed/reset
+  utilities, or other test operations against `inventory_db`.** It is
+  the protected application database.
+- Use only a separately verified, isolated
+  `inventory_migration_<test_name>` database for migration and MySQL
+  integration testing.
+- Never assume a database is disposable because its name matches that
+  pattern. Verify its ownership, contents, configuration, and
+  permissions before use.
+- Use a least-privileged account limited to the intended test
+  database.
+- Do not blindly rerun partially applied DDL or use
+  `database/reset_dev.py` as a general-purpose reset command.
+- Never print or commit credentials while diagnosing database setup.
+
+The migration and database-creation utilities include target
+restrictions and additional safety checks; those checks do not replace
+verifying the actual target and its disposability.
+
+## Run the Application
+
+With the virtual environment activated and `.env` configured:
+
+```powershell
 python main.py
 ```
 
-This launches the desktop GUI for the implemented application modules, including the core CRUD modules:
+The entry point launches the desktop application through
+`app.gui.main_window`.
 
-- Categories
-- Products
-- Suppliers
-
-Available purchasing and stock-in functionality depends on the current implementation and configuration.
+If startup fails, check the installed dependencies, MySQL service, local
+environment configuration, database availability, and compatibility of
+the database schema with the current code. Do not use the protected
+application database as a test target to diagnose failures.
 
 ## Testing
 
-Run the automated test suite with:
+Run the default test suite:
 
-```bash
-python -m pytest
+```powershell
+python -m pytest -q
 ```
 
-Testing is expanded throughout development.
+Run integration tests separately when their required safety
+configuration has been verified:
 
-Manual QA checks cover areas such as:
+```powershell
+python -m pytest tests/integration -q -rs
+```
 
-- CRUD operations
-- Input validation
-- Duplicate protection
-- Relationship rules
-- Deletion restrictions
-- Database transaction behaviour
+Read the integration-test helpers and safety tests before enabling live
+MySQL integration tests. A live database test must use an explicitly
+verified disposable database and a least-privileged account. Never point
+integration tests at `inventory_db` or at an unverified existing
+`inventory_migration_*` database.
 
-The proposed procurement schema has also been tested for table creation in a separate temporary database. Successful table creation does not establish that all package, unit-conversion, migration, or application-level business rules have been implemented.
+Prefer `python -m pytest` if invoking the standalone `pytest` command
+does not resolve the project modules correctly.
 
-Those rules require further validation and automated tests as their corresponding services and migrations are developed.
+## Documentation
 
-## Development Roadmap
+- [Database architecture](docs/database-architecture.md)
+- [Project requirements](docs/requirements.md)
+- [Procurement schema design](docs/procurement-schema-design.md)
+- [Legacy inventory-unit mapping](docs/legacy-inventory-unit-mapping.md)
+- [Legacy supplier-offer mapping](docs/legacy-supplier-offer-mapping.md)
+- [Supplier-offer service and persistence contract](docs/supplier-offer-service.md)
 
-The project follows this versioned roadmap. The Extended edition records additional post-tag development work; the original `v0.4.2` tag is preserved.
+Some documentation describes proposals, migration plans, or intended
+behavior. Confirm implementation status by inspecting the current source
+code and relevant tests.
 
-| Version / milestone    | Focus                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------- |
-| `v0.1.0`               | Project foundation, schema, demo data, and documentation                                  |
-| `v0.2.1`               | Database connection layer                                                                 |
-| `v0.2.2`               | Category CRUD service                                                                     |
-| `v0.2.3`               | Product CRUD service                                                                      |
-| `v0.2.4`               | Supplier CRUD service                                                                     |
-| `v0.2.5`               | Basic CRUD GUI                                                                            |
-| `v0.2.6`               | CRUD QA and documentation                                                                 |
-| `v0.3.0`               | Core CRUD milestone release                                                               |
-| `v0.4.0`               | Purchasing and stock-in                                                                   |
-| `v0.4.1`               | Schema redesign                                                                           |
-| `v0.4.2`               | Data migration                                                                            |
-| `v0.4.2 Extended (Ex)` | Additional supplier-offer foundation and migration validation work after the original tag |
-| `v0.4.3`               | Supplier-offer follow-up and integration work, subject to review of the Extended edition  |
-| `v0.4.4`               | Package and unit logic                                                                    |
-| `v0.4.5`               | Purchase refactor                                                                         |
-| `v0.4.6`               | Purchase GUI                                                                              |
-| `v0.4.7`               | Stock-in refactor                                                                         |
-| `v0.5.0`               | QA and documentation                                                                      |
+## Roadmap and Release Status
 
-Roadmap entries describe intended milestones and should not be read as proof that every listed feature is complete. Update milestone status when implementation and verification evidence support the change.
+The active milestone is **`v0.4.3` — supplier-offer lifecycle and review**.
+Use the current recalibrated project roadmap as the authority for sub-version
+scope, dependencies, and acceptance criteria. This README is a status summary,
+not a substitute for the detailed roadmap.
 
-## Scope Boundaries
+Milestone completion requires implementation and verification evidence for all
+acceptance criteria. Passing the automated suite alone does not establish that
+live MySQL integration, manual GUI checks, or release requirements have passed.
+Do not describe `v0.4.3` as released until the release gate is complete and a
+release is actually published.
 
-The initial application intentionally excludes several advanced features, including:
+## Development Workflow
 
-- Authentication and user roles
-- Customer management
-- Barcode scanning
-- Multiple warehouses
-- Cloud deployment
-- REST API
-- Mobile application
-- Payment gateway
-- GST-compliant invoicing
-- Returns and refunds
-- Advanced analytics
-- Email notifications
-- Supplier portal
+Follow the active roadmap and work on one bounded sub-version at a time:
 
-Additional functionality may be considered after the core application and procurement workflow have been stabilized.
+1.  Capture the current Git status, recent history, branch, tags, and
+    relevant version metadata. Preserve existing local work.
+2.  Lock the sub-version's scope, dependencies, allowed files,
+    acceptance criteria, and test plan before editing.
+3.  Trace the relevant GUI/service/repository/schema path and inspect
+    existing tests before implementing.
+4.  Implement only the current topic; do not bundle unrelated refactors
+    or future-version work.
+5.  Run focused tests, then relevant regression tests and live MySQL or
+    manual GUI checks when required.
+6.  Review test output, database-target safety, changed files, secrets,
+    and the final diff.
+7.  Record acceptance as `PASS`, `PARTIAL`, `FAIL`, or `BLOCKED`. Make a
+    local topic commit only after the relevant acceptance criteria pass.
+8.  Do not push, tag, or publish a release while the main milestone is
+    incomplete. Release steps happen only after the milestone-wide
+    acceptance and release gate pass.
 
-## Demo Data
+Useful review commands:
 
-The original demonstration data includes fictional records for:
+```powershell
+git status --short
+git log --oneline --decorate -12
+git diff --check
+git diff -- README.md
+```
 
-- 4 categories
-- 3 suppliers
-- 8 products
+Do not use destructive Git commands to clear line-ending noise or
+simplify the working tree. Review changes before staging or committing.
 
-This data is intended for local development and demonstration purposes.
+## Security and Data Integrity
 
-## License
+- Keep `.env` and local database credentials out of Git and public
+  archives.
+- Use parameterized SQL for supplied values.
+- Use least-privileged database accounts.
+- Keep the application database separate from migration and
+  integration-test databases.
+- Preserve the integrity of real transactions when changing inventory
+  or procurement behavior.
+- Do not invent package conversions, units, or price bases; use
+  explicitly defined business rules and stored evidence.
+- Treat source files, schema definitions, requirements, and roadmap
+  entries as different kinds of evidence. A design document or planned
+  feature is not proof of a completed end-to-end workflow.
 
-License information will be added before the final `v1.0.0` release.
+---
+
+Update this README when verified implementation or project workflow
+changes. Keep status statements aligned with the current repository and
+roadmap; do not describe planned, untested, or unreleased work as
+complete.
