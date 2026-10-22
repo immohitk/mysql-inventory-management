@@ -327,3 +327,8 @@ Update this README when verified implementation or project workflow
 changes. Keep status statements aligned with the current repository and
 roadmap; do not describe planned, untested, or unreleased work as
 complete.
+
+## License
+
+License information has not yet been specified in this repository.
+Add the intended license before publishing a public release.
