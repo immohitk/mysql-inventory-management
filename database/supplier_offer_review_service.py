@@ -79,7 +79,7 @@ def save_review(database: str, offer_id: int, review: SupplierOfferReview) -> No
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip())
 
-    # Confirm that the review record was persisted.
+    # Confirm that the review record was persisted in the selected database.
     check = run_mysql(
         database,
         "SELECT COUNT(*) FROM supplier_offer_reviews "

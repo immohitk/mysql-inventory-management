@@ -103,7 +103,70 @@ class TestSupplierOfferReviewService(unittest.TestCase):
             run_mysql.call_args_list[2].args[0],
             "inventory_migration_snapshot_v043",
         )
+        self.assertIn(
+            "SELECT COUNT(*) FROM supplier_offer_reviews",
+            run_mysql.call_args_list[2].args[1],
+        )
 
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_rejects_offer_that_does_not_exist(self, run_mysql):
+        def result(returncode=0, stdout="", stderr=""):
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": returncode,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                },
+            )()
+
+        run_mysql.side_effect = [
+            result(stdout="0\n"),  # No existing review
+            result(),              # INSERT ... SELECT inserts no row
+            result(stdout="0\n"),  # Verification finds no review
+        ]
+
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            save_review(
+                "inventory_migration_snapshot_v043",
+                999999,
+                self.make_review(),
+            )
+
+        self.assertEqual(run_mysql.call_count, 3)
+        self.assertEqual(
+            run_mysql.call_args_list[2].args[0],
+            "inventory_migration_snapshot_v043",
+        )
+
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_reports_post_insert_verification_error(self, run_mysql):
+        def result(returncode=0, stdout="", stderr=""):
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": returncode,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                },
+            )()
+
+        run_mysql.side_effect = [
+            result(stdout="0\n"),  # No existing review
+            result(),              # INSERT succeeds
+            result(returncode=1, stderr="verification failed"),
+        ]
+
+        with self.assertRaisesRegex(RuntimeError, "verification failed"):
+            save_review(
+                "inventory_migration_snapshot_v043",
+                1,
+                self.make_review(),
+            )
+
+        self.assertEqual(run_mysql.call_count, 3)
 
 if __name__ == "__main__":
     unittest.main()
