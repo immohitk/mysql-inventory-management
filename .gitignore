@@ -32,3 +32,5 @@ htmlcov/
 *.temp
 /database/schema_fresh.sql.bak
 /database/seed_demo.py.bak
+
+database/.integration-test-credentials.ps1

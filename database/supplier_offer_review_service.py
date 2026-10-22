@@ -34,7 +34,16 @@ def save_review(database: str, offer_id: int, review: SupplierOfferReview) -> No
     if existing.returncode != 0:
         raise RuntimeError(existing.stderr.strip())
 
-    if existing.stdout.strip() == "1":
+    count_text = existing.stdout.strip()
+
+    if not count_text.isdecimal():
+        raise RuntimeError(
+            "Could not verify the existing supplier offer review count."
+        )
+
+    existing_count = int(count_text)
+
+    if existing_count > 0:
         raise ValueError(
             f"Review for supplier offer {offer_id} already exists."
         )
@@ -88,5 +97,22 @@ def save_review(database: str, offer_id: int, review: SupplierOfferReview) -> No
     if check.returncode != 0:
         raise RuntimeError(check.stderr.strip())
 
-    if check.stdout.strip() != "1":
-        raise ValueError(f"Supplier offer {offer_id} does not exist.")
+    count_text = check.stdout.strip()
+
+    if not count_text.isdecimal():
+        raise RuntimeError(
+            "Could not verify the persisted supplier offer review."
+        )
+
+    persisted_count = int(count_text)
+
+    if persisted_count == 0:
+        raise ValueError(
+            f"Supplier offer {offer_id} does not exist or its review was not persisted."
+        )
+
+    if persisted_count != 1:
+        raise RuntimeError(
+            f"Expected exactly one review for supplier offer {offer_id}; "
+            f"found {persisted_count}."
+        )

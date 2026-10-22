@@ -168,5 +168,97 @@ class TestSupplierOfferReviewService(unittest.TestCase):
 
         self.assertEqual(run_mysql.call_count, 3)
 
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_rejects_malformed_existing_review_count(self, run_mysql):
+        run_mysql.return_value.returncode = 0
+        run_mysql.return_value.stdout = "not-a-count\n"
+        run_mysql.return_value.stderr = ""
+
+        with self.assertRaisesRegex(
+            RuntimeError, "existing supplier offer review count"
+        ):
+            save_review(
+                "inventory_migration_snapshot_v043",
+                1,
+                self.make_review(),
+            )
+
+        run_mysql.assert_called_once()
+
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_rejects_malformed_persisted_review_count(self, run_mysql):
+        def result(returncode=0, stdout="", stderr=""):
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": returncode,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                },
+            )()
+
+        run_mysql.side_effect = [
+            result(stdout="0\n"),
+            result(),
+            result(stdout="unknown\n"),
+        ]
+
+        with self.assertRaisesRegex(
+            RuntimeError, "persisted supplier offer review"
+        ):
+            save_review(
+                "inventory_migration_snapshot_v043",
+                1,
+                self.make_review(),
+            )
+
+        self.assertEqual(run_mysql.call_count, 3)
+
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_reports_multiple_persisted_reviews(self, run_mysql):
+        def result(returncode=0, stdout="", stderr=""):
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": returncode,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                },
+            )()
+
+        run_mysql.side_effect = [
+            result(stdout="0\n"),
+            result(),
+            result(stdout="2\n"),
+        ]
+
+        with self.assertRaisesRegex(
+            RuntimeError, "Expected exactly one review"
+        ):
+            save_review(
+                "inventory_migration_snapshot_v043",
+                1,
+                self.make_review(),
+            )
+
+        self.assertEqual(run_mysql.call_count, 3)
+
+    @patch("database.supplier_offer_review_service.run_mysql")
+    def test_rejects_multiple_existing_reviews(self, run_mysql):
+        run_mysql.return_value.returncode = 0
+        run_mysql.return_value.stdout = "2\n"
+        run_mysql.return_value.stderr = ""
+
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            save_review(
+                "inventory_migration_snapshot_v043",
+                1,
+                self.make_review(),
+            )
+
+        run_mysql.assert_called_once()
+
 if __name__ == "__main__":
     unittest.main()

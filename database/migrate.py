@@ -1,10 +1,11 @@
 """Run SQL migrations against isolated test databases only."""
 
 import argparse
-import hashlib
 import os
 import re
 import subprocess
+import tempfile
+import warnings
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -16,41 +17,149 @@ MYSQL = Path(
         r"C:\Program Files\MySQL\MySQL Server 9.7\bin\mysql.exe",
     )
 )
-LOGIN_PATH = os.environ.get(
-    "MYSQL_LOGIN_PATH",
-    "inventory-migrations",
-)
 
 def run_mysql(database, sql=None, file=None):
     """Run SQL against the explicitly selected test database."""
-    command = [
-        str(MYSQL),
-        f"--login-path={LOGIN_PATH}",
-        "--default-character-set=utf8mb4",
-        "--database",
-        database,
-        "--batch",
-        "--skip-column-names",
+    if not isinstance(database, str) or not re.fullmatch(
+        r"inventory_migration_[A-Za-z0-9_]+", database
+    ):
+        raise ValueError(
+            "Use an isolated inventory_migration_<test_name> database."
+        )
+    username = os.environ.get("INVENTORY_TEST_DB_USER", "").strip()
+    if username.casefold() in {"root", "admin", "administrator"}:
+        raise RuntimeError(
+            "Refusing a known administrative database account."
+        )
+    password = os.environ.get("INVENTORY_TEST_DB_PASSWORD", "")
+    host = os.environ.get("INVENTORY_TEST_DB_HOST", "localhost").strip()
+    port = os.environ.get("INVENTORY_TEST_DB_PORT", "").strip()
+
+    if (sql is None) == (file is None):
+        raise ValueError("Provide exactly one of sql or file.")
+
+    if not username or not password:
+        raise RuntimeError(
+            "Set INVENTORY_TEST_DB_USER and INVENTORY_TEST_DB_PASSWORD."
+        )
+
+    if not host:
+        raise RuntimeError("INVENTORY_TEST_DB_HOST cannot be empty.")
+
+    # Prevent option-file injection through environment values.
+    def quote_option(value):
+        if any(char in value for char in ("\r", "\n", "\x00")):
+            raise RuntimeError(
+                "MySQL connection settings cannot contain control characters."
+            )
+        return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+    option_lines = [
+        "[client]",
+        f"user={quote_option(username)}",
+        f"password={quote_option(password)}",
+        f"host={quote_option(host)}",
+        "default-character-set=utf8mb4",
     ]
 
-    if file is not None:
-        with file.open("r", encoding="utf-8") as sql_file:
-            return subprocess.run(
-                command,
-                stdin=sql_file,
-                text=True,
-                capture_output=True,
-                check=False,
+    if port:
+        if not port.isdigit() or not 1 <= int(port) <= 65535:
+            raise RuntimeError("INVENTORY_TEST_DB_PORT must be a valid port.")
+        option_lines.append(f"port={int(port)}")
+
+    option_file = None
+
+    try:
+        # Create an empty file first; do not write the password until
+        # Windows permissions have been restricted.
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            suffix=".cnf",
+            prefix="inventory-migration-",
+            delete=False,
+        ) as credentials:
+            option_file = Path(credentials.name)
+
+        # Protect the credential file using the current Windows identity.
+        identity_result = subprocess.run(
+            ["whoami"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if identity_result.returncode != 0:
+            raise RuntimeError("Could not determine the Windows account.")
+
+        identity = identity_result.stdout.strip()
+        if not identity:
+            raise RuntimeError("Windows returned an empty account identity.")
+
+        acl_result = subprocess.run(
+            [
+                "icacls",
+                str(option_file),
+                "/inheritance:r",
+                "/grant:r",
+                f"{identity}:(F)",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if acl_result.returncode != 0:
+            raise RuntimeError(
+                "Could not restrict temporary credentials-file permissions: "
+                + acl_result.stderr.strip()
             )
 
-    command.extend(["--execute", sql])
+        # Only write the password after the ACL command succeeds.
+        option_file.write_text(
+            "\n".join(option_lines) + "\n",
+            encoding="utf-8",
+        )
 
-    return subprocess.run(
-        command,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+        command = [
+            str(MYSQL),
+            f"--defaults-extra-file={option_file}",
+            "--no-login-paths",
+            "--default-character-set=utf8mb4",
+            "--database",
+            database,
+            "--batch",
+            "--skip-column-names",
+        ]
+
+        if file is not None:
+            with file.open("r", encoding="utf-8") as sql_file:
+                return subprocess.run(
+                    command,
+                    stdin=sql_file,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+        command.extend(["--execute", sql])
+
+        return subprocess.run(
+            command,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    finally:
+        if option_file is not None:
+            try:
+                option_file.unlink(missing_ok=True)
+            except OSError as exc:
+                warnings.warn(
+                    "Could not remove the temporary MySQL credentials file "
+                    f"{option_file}. It may contain database credentials; "
+                    f"delete it manually. Reason: {exc}",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
 
 
 def main():
@@ -75,24 +184,49 @@ def main():
             "Refusing to run migrations against the original inventory_db."
         )
 
+    username = os.environ.get("INVENTORY_TEST_DB_USER", "").strip()
+    password = os.environ.get("INVENTORY_TEST_DB_PASSWORD", "")
+
+    if not username or not password:
+        parser.error(
+            "Set INVENTORY_TEST_DB_USER and INVENTORY_TEST_DB_PASSWORD "
+            "for the dedicated integration-test account."
+        )
+
+    if username.casefold() in {"root", "admin", "administrator"}:
+        parser.error("Refusing a known administrative database account.")
 
     if not MYSQL.is_file():
         parser.error(f"MySQL client not found: {MYSQL}")
 
+    # Verify both the selected database and the authenticated MySQL account.
+    result = run_mysql(database, "SELECT DATABASE(), CURRENT_USER()")
 
-    # Confirm the selected database exists and is reachable.
-    result = run_mysql(database, "SELECT DATABASE()")
     if result.returncode != 0:
         parser.error(
             "Cannot connect to the selected test database:\n"
             + result.stderr.strip()
         )
 
-    connected_database = result.stdout.strip()
+    identity_parts = result.stdout.rstrip("\r\n").split("\t")
+    if len(identity_parts) != 2:
+        parser.error(
+            "Connection check returned an unexpected database/account identity."
+        )
+
+    connected_database, connected_account = identity_parts
+    expected_account = username + "@"
+
     if connected_database != database:
         parser.error(
             f"Connected to unexpected database {connected_database!r}; "
             f"expected {database!r}."
+        )
+
+    if not connected_account.startswith(expected_account):
+        parser.error(
+            f"Connected as unexpected MySQL account {connected_account!r}; "
+            f"expected account username {username!r}."
         )
 
 
@@ -135,6 +269,7 @@ def main():
         )
 
     migrations = sorted(MIGRATIONS_DIR.glob("*.sql"))
+
     if not migrations:
         raise RuntimeError(
             f"No migration files found in {MIGRATIONS_DIR}"
@@ -160,6 +295,13 @@ def main():
     }
 
     migration_versions = {migration.name for migration in migrations}
+    unmapped_migrations = migration_versions - set(migration_table_groups)
+
+    if unmapped_migrations:
+        parser.error(
+            "Migration files have no expected-table mapping: "
+            + ", ".join(sorted(unmapped_migrations))
+        )
 
     for migration_name, expected_tables in migration_table_groups.items():
         present_tables = expected_tables & existing_tables
@@ -200,6 +342,7 @@ def main():
 
         for line in result.stdout.splitlines():
             parts = line.split("\t")
+
             if len(parts) != 6:
                 parser.error(
                     "Migration history table has an invalid column definition."
@@ -213,6 +356,7 @@ def main():
                 column_key,
                 column_default,
             ) = parts
+
             history_columns[name.strip()] = {
                 "data_type": data_type.strip().lower(),
                 "length": length.strip(),
@@ -273,6 +417,7 @@ def main():
         }
 
         unknown_versions = recorded_versions - migration_versions
+
         if unknown_versions:
             parser.error(
                 "Unknown migration versions recorded: "
@@ -315,7 +460,6 @@ def main():
                 "Inspect the database manually before retrying."
             )
 
-
     # Create the migration history table only after consistency checks pass.
     history_sql = """
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -324,6 +468,7 @@ def main():
         )
     """
     result = run_mysql(database, history_sql)
+
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip())
 
@@ -336,6 +481,7 @@ def main():
             "SELECT COUNT(*) FROM schema_migrations "
             f"WHERE version = '{safe_version}'",
         )
+
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip())
 
@@ -359,6 +505,7 @@ def main():
             "INSERT INTO schema_migrations (version) "
             f"VALUES ('{safe_version}')",
         )
+
         if result.returncode != 0:
             raise RuntimeError(
                 f"{version} executed but tracking failed. "
