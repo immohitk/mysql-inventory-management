@@ -440,6 +440,9 @@ class TestMigrationRunner(unittest.TestCase):
             MagicMock(returncode=0, stdout="0", stderr=""),  # 004 not recorded
             MagicMock(returncode=0, stdout="", stderr=""),  # Apply 004
             MagicMock(returncode=0, stdout="", stderr=""),  # Record 004
+            MagicMock(returncode=0, stdout="0", stderr=""),  # 005 not recorded
+            MagicMock(returncode=0, stdout="", stderr=""),   # Apply 005
+            MagicMock(returncode=0, stdout="", stderr=""),   # Record 005
         ]
 
         with patch(
@@ -460,6 +463,7 @@ class TestMigrationRunner(unittest.TestCase):
                 "002_create_package_and_supplier_tables.sql",
                 "003_create_legacy_product_mapping.sql",
                 "004_supplier_offer_evidence.sql",
+                "005_unit_conversion_dimension_integrity.sql",
             ],
         )
 

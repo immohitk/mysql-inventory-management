@@ -292,6 +292,7 @@ def main():
         "004_supplier_offer_evidence.sql": {
             "supplier_offer_reviews",
         },
+        "005_unit_conversion_dimension_integrity.sql": set(),
     }
 
     migration_versions = {migration.name for migration in migrations}
@@ -443,7 +444,8 @@ def main():
 
         for version, expected_tables in migration_table_groups.items():
             if (
-                expected_tables.issubset(existing_tables)
+                expected_tables
+                and expected_tables.issubset(existing_tables)
                 and version not in recorded_versions
             ):
                 parser.error(
